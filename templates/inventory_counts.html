@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Inventario físico{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">CONTROL FÍSICO</p><h1>Inventarios físicos</h1><p class="muted">Compare las cantidades contadas con el stock del sistema.</p></div></div>
+<section class="card"><h2>Nueva jornada de inventario</h2><form method="post" class="form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Nombre o referencia<input name="name" placeholder="Ej. Inventario semanal - pañol" required></label>
+  <label>Fecha del conteo<input type="date" name="count_date" value="{{ today }}" required></label>
+  <button class="button full" type="submit">Iniciar inventario físico</button>
+</form></section>
+<section class="card">
+  <div class="section-heading">
+    <h2>Jornadas registradas ({{ pagination.total }})</h2>
+    <form class="search" method="get" aria-label="Filtrar inventarios físicos">
+      <input name="q" value="{{ search }}" placeholder="Buscar por nombre..." aria-label="Buscar por nombre">
+      <select name="status" aria-label="Filtrar por estado">
+        <option value="">Todos los estados</option>
+        <option value="open" {% if status == 'open' %}selected{% endif %}>Abiertos</option>
+        <option value="closed" {% if status == 'closed' %}selected{% endif %}>Cerrados</option>
+      </select>
+      <label>Desde <input type="date" name="date_from" value="{{ date_from }}"></label>
+      <label>Hasta <input type="date" name="date_to" value="{{ date_to }}"></label>
+      <select name="page_size" aria-label="Elementos por página">
+        {% for size in [10, 25, 50, 100] %}<option value="{{ size }}" {% if pagination.page_size == size %}selected{% endif %}>{{ size }} por página</option>{% endfor %}
+      </select>
+      <button type="submit">Buscar</button>
+      <a class="action-link" href="{{ url_for('inventory_counts') }}">Limpiar</a>
+    </form>
+  </div>
+  {% if counts %}<table><thead><tr><th>Inventario</th><th>Fecha</th><th>Estado</th><th>Progreso</th><th>Creado por</th><th>Acción</th></tr></thead><tbody>{% for count in counts %}<tr><td><strong>{{ count.name }}</strong><small>#{{ count.id }}</small></td><td>{{ count.count_date }}</td><td><span class="badge {{ 'entrada' if count.status == 'closed' else 'ajuste' }}">{{ 'Cerrado' if count.status == 'closed' else 'Abierto' }}</span></td><td>{{ count.counted_items or 0 }} / {{ count.item_count }}</td><td>{{ count.created_by_name }}</td><td><a class="action-link" href="{{ url_for('inventory_count_detail', count_id=count.id) }}">Ver conteo</a></td></tr>{% endfor %}</tbody></table>{% else %}<p class="empty">No hay inventarios físicos registrados.</p>{% endif %}
+  {% if pagination.pages > 1 %}<nav class="pagination" aria-label="Paginación de inventarios físicos">
+    {% if pagination.page > 1 %}<a href="{{ url_for('inventory_counts', q=search, status=status, date_from=date_from, date_to=date_to, page=pagination.page-1, page_size=pagination.page_size) }}" rel="prev">Anterior</a>{% endif %}
+    <span aria-current="page">Página {{ pagination.page }} de {{ pagination.pages }}</span>
+    {% if pagination.page < pagination.pages %}<a href="{{ url_for('inventory_counts', q=search, status=status, date_from=date_from, date_to=date_to, page=pagination.page+1, page_size=pagination.page_size) }}" rel="next">Siguiente</a>{% endif %}
+  </nav>{% endif %}
+</section>
+{% endblock %}

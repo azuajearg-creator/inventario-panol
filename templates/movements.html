@@ -1,0 +1,650 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Movimientos{% endblock %}
+
+{% block content %}
+
+<div class="page-heading"><div><p class="eyebrow">MÓDULO DE TRAZABILIDAD</p><h1>Movimientos de inventario</h1></div></div>
+
+<section class="card"><h2>Registrar movimiento de materiales</h2><p class="field-help">Escanee los materiales con el lector USB uno a uno. El cursor vuelve automáticamente para el siguiente ítem.</p><form method="post" id="material-movement-form" class="form-grid">
+
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="product_type" value="material">
+
+<label class="full">Escanear material<div class="scan-input"><input id="material-master-scan" autocomplete="off" placeholder="Escanear código de barras" inputmode="text"><button type="button" class="scan-camera" data-target="material-master-scan">Cámara</button></div><small id="material-scan-status" class="scan-status" aria-live="polite">Escanee un material para comenzar.</small></label>
+
+<div class="full">
+  <button type="button" id="material-add-manual-btn" class="action-link" style="font-size:.875rem">+ Agregar manualmente</button>
+  <div id="material-manual-panel" style="display:none;margin-top:8px;border:1px solid var(--border,#ddd);border-radius:6px;padding:12px;background:var(--surface-alt,#f9f9f9)">
+    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+      <label style="flex:1;min-width:200px;font-size:.875rem">Material
+        <select id="material-manual-select" style="width:100%">
+          <option value="">Seleccionar material…</option>
+          {% for p in material_products %}
+          <option value="{{ p.id }}" data-name="{{ p.name }}" data-code="{{ p.code }}" data-stock="{{ p.stock }}">{{ p.name }} ({{ p.code }}) — {{ p.stock }} disp.</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label style="font-size:.875rem">Cantidad<input type="number" id="material-manual-qty" value="1" min="1" style="width:70px;display:block"></label>
+      <button type="button" id="material-manual-add-btn" class="button" style="margin-bottom:0">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<div class="full" id="material-rows-container"></div>
+
+<label>Tipo<select name="movement_type" required><option value="entrada">Entrada / compra</option><option value="salida">Salida / consumo</option><option value="devolucion">Devolución al pañol</option><option value="ajuste">Ajuste (descuenta)</option></select></label>
+
+<label>Código del responsable<div class="scan-input"><input class="barcode-scan" data-target="material-employee" autocomplete="off" placeholder="Escanear empleado" inputmode="text"><button type="button" class="scan-camera" data-target="material-employee">Cámara</button></div><small class="scan-status" aria-live="polite"></small></label>
+
+<label>Responsable de entrega<select id="material-employee" name="employee_id"><option value="">No corresponde</option>{% for employee in employees %}<option value="{{ employee.id }}">{{ employee.full_name }} - Legajo {{ employee.legajo }}</option>{% endfor %}</select><small class="field-help">Obligatorio para una salida o entrega.</small></label>
+
+<label>Fecha del movimiento<input type="date" name="movement_date" value="{{ today }}" required></label>
+
+<label>N° de remito<input name="remito" placeholder="Ej. R-0142 (opcional)" autocomplete="off" maxlength="60"><small class="field-help">Obligatorio cuando se entrega a personal de empresa contratista o se presta a otra obra.</small></label>
+
+<label class="full">Observaciones<input name="notes" placeholder="Frente de obra, motivo o referencia"></label><button class="button full" type="submit" id="material-submit-btn" disabled>Registrar materiales</button>
+
+</form></section>
+
+<section class="card"><h2>Registrar entrega o devolución de herramientas</h2><p class="field-help">Escanee el empleado y luego agregue las herramientas una a una. Puede registrar varias en un mismo movimiento.</p>
+<form method="post" id="tool-movement-form" class="form-grid">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="product_type" value="herramienta">
+
+<label>Código del empleado<div class="scan-input"><input class="barcode-scan" data-target="tool-employee" autocomplete="off" placeholder="Escanear empleado" inputmode="text"><button type="button" class="scan-camera" data-target="tool-employee">Cámara</button></div><small class="scan-status" aria-live="polite"></small></label>
+
+<label>Responsable / empleado<select id="tool-employee" name="employee_id" required><option value="">Seleccionar...</option>{% for employee in employees %}<option value="{{ employee.id }}">{{ employee.full_name }} - Legajo {{ employee.legajo }}</option>{% endfor %}</select></label>
+
+<label>Tipo<select name="movement_type" required><option value="salida">Entrega al empleado</option><option value="devolucion">Devolución al pañol</option><option value="entrada">Ingreso de herramienta</option></select></label>
+
+<label>Fecha del movimiento<input type="date" name="movement_date" value="{{ today }}" required></label>
+
+<label>N° de remito<input name="remito" placeholder="Ej. R-0142 (opcional)" autocomplete="off" maxlength="60"><small class="field-help">Obligatorio cuando se entrega a personal de empresa contratista o se presta a otra obra.</small></label>
+
+<label class="full">Observaciones<input name="notes" placeholder="Frente de obra o estado de la herramienta"></label>
+
+<label class="full">Escanear herramienta<div class="scan-input"><input id="tool-master-scan" autocomplete="off" placeholder="Escanear código de herramienta" inputmode="text"><button type="button" class="scan-camera" data-target="tool-master-scan">Cámara</button></div><small id="tool-master-status" class="scan-status" aria-live="polite">Escanee para agregar. También puede usar el botón.</small></label>
+
+<div class="full" id="tool-rows-container"></div>
+
+<button type="button" id="add-tool-row" class="button button-muted full">+ Agregar herramienta manualmente</button>
+<button class="button full" type="submit">Registrar herramientas</button>
+</form></section>
+
+<select id="tool-product-options-tpl" hidden>
+<option value="">Seleccionar...</option>
+{% for product in tool_products %}<option value="{{ product.id }}">[{{ product.code }}] {{ product.name }}{% if product.brand %} - {{ product.brand }}{% endif %} ({{ product.stock }} disponibles)</option>{% endfor %}
+</select>
+
+<section class="card"><div class="section-heading"><h2>Historial reciente</h2><form class="search" method="get"><input type="hidden" name="page_size" value="{{ pagination.page_size }}"><input name="q" value="{{ search }}" placeholder="Producto, empleado, nota o remito" aria-label="Buscar movimientos"><select name="movement_type" aria-label="Tipo de movimiento"><option value="">Todos los tipos</option>{% for type in ['entrada', 'salida', 'devolucion', 'ajuste'] %}<option value="{{ type }}" {% if movement_type == type %}selected{% endif %}>{{ type|capitalize }}</option>{% endfor %}</select><select name="employee_id" aria-label="Filtrar por empleado"><option value="">Todos los empleados</option>{% for employee in all_employees %}<option value="{{ employee.id }}" {% if employee_id_filter == employee.id|string %}selected{% endif %}>{{ employee.full_name }}</option>{% endfor %}</select><button>Buscar</button><a class="action-link" href="{{ url_for('movements') }}">Limpiar</a></form></div>{% if history %}<table><thead><tr><th>Fecha del movimiento</th><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Responsable</th><th>Remito</th><th>Notas</th><th>Acción</th></tr></thead><tbody>{% for movement in history %}<tr><td>{{ movement.movement_date }}<small>Registrado {{ movement.created_at }}</small></td><td>{{ movement.product_name }}<small>{{ movement.product_code }}</small></td><td><span class="badge {{ movement.movement_type }}">{{ movement.movement_type|capitalize }}</span></td><td>{{ movement.quantity }}</td><td>{{ movement.employee_name or '-' }}</td><td>{% if movement.remito %}<strong>{{ movement.remito }}</strong>{% else %}-{% endif %}</td><td>{{ movement.notes or '-' }}</td><td><a class="action-link" href="{{ url_for('movement_receipt', movement_id=movement.id) }}">Comprobante</a>{% if movement.product_type == 'material' %}<a class="action-link" href="{{ url_for('edit_material_movement', movement_id=movement.id) }}">Corregir</a>{% endif %}{% if session.get('role') in ['admin', 'supervisor'] %}<form method="post" action="{{ url_for('reverse_movement', movement_id=movement.id) }}" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input name="reason" placeholder="Motivo" required><button class="action-link action-button" type="submit">Revertir</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table>{% else %}<p class="empty">No hay movimientos registrados.</p>{% endif %}{% if pagination.pages > 1 %}<nav class="pagination" aria-label="Paginación de movimientos">{% if pagination.page > 1 %}<a href="{{ url_for('movements', q=search, movement_type=movement_type, employee_id=employee_id_filter, page=pagination.page-1, page_size=pagination.page_size) }}" rel="prev">Anterior</a>{% endif %}<span aria-current="page">Página {{ pagination.page }} de {{ pagination.pages }}</span>{% if pagination.page < pagination.pages %}<a href="{{ url_for('movements', q=search, movement_type=movement_type, employee_id=employee_id_filter, page=pagination.page+1, page_size=pagination.page_size) }}" rel="next">Siguiente</a>{% endif %}</nav>{% endif %}</section>
+
+{% endblock %}
+
+{% block scripts %}
+
+<div id="camera-scanner" class="camera-scanner" hidden>
+
+  <div class="camera-scanner-card">
+
+    <h2>Escanear código</h2>
+
+    <video id="camera-preview" autoplay playsinline muted></video>
+
+    <p id="camera-status" class="field-help">Apunte la cámara al código de barras.</p>
+
+    <button id="camera-stop" type="button" class="button button-muted">Cerrar cámara</button>
+
+  </div>
+
+</div>
+
+<script>
+
+document.querySelectorAll(".barcode-scan").forEach(function (input) {
+
+  input.addEventListener("keydown", function (event) {
+
+    if (event.key !== "Enter") return;
+
+    event.preventDefault();
+
+    var status = input.parentElement.querySelector(".scan-status");
+
+    var target = document.getElementById(input.dataset.target);
+
+    fetch("/api/codigos/" + encodeURIComponent(input.value.trim()))
+
+      .then(function (response) {
+
+        if (!response.ok) throw new Error("Código no encontrado");
+
+        return response.json();
+
+      })
+
+      .then(function (data) {
+
+        if ((data.type === "product" && target.id.indexOf("product") === -1) ||
+
+            (data.type === "employee" && target.id.indexOf("employee") === -1)) {
+
+          throw new Error("El código no corresponde a este campo");
+
+        }
+
+        target.value = data.item.id;
+
+        status.textContent = data.type === "product"
+
+          ? data.item.name + " (" + data.item.stock + " disponibles)"
+
+          : data.item.full_name + " - Legajo " + data.item.legajo;
+
+        status.className = "scan-status scan-ok";
+
+        input.value = "";
+
+      })
+
+      .catch(function (error) {
+
+        status.textContent = error.message;
+
+        status.className = "scan-status scan-error";
+
+      });
+
+  });
+
+});
+
+
+
+(function () {
+
+  var scanner = document.getElementById("camera-scanner");
+
+  var preview = document.getElementById("camera-preview");
+
+  var status = document.getElementById("camera-status");
+
+  var stopButton = document.getElementById("camera-stop");
+
+  var stream = null;
+
+  var targetId = null;
+
+  var detector = null;
+
+  var scanning = false;
+
+
+
+  function closeScanner() {
+
+    scanning = false;
+
+    if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
+
+    stream = null;
+
+    preview.srcObject = null;
+
+    scanner.hidden = true;
+
+  }
+
+
+
+  function applyCode(code) {
+
+    var input = document.querySelector('.barcode-scan[data-target="' + targetId + '"]') ||
+                document.getElementById(targetId);
+
+    if (!input) return closeScanner();
+
+    input.value = code;
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    closeScanner();
+
+  }
+
+
+
+  function scanFrame() {
+
+    if (!scanning || !detector) return;
+
+    detector.detect(preview).then(function (barcodes) {
+
+      if (barcodes.length && barcodes[0].rawValue) {
+
+        applyCode(barcodes[0].rawValue);
+
+        return;
+
+      }
+
+      requestAnimationFrame(scanFrame);
+
+    }).catch(function () {
+
+      status.textContent = "No se pudo leer el código. Mantenga la cámara enfocada.";
+
+      requestAnimationFrame(scanFrame);
+
+    });
+
+  }
+
+
+
+  function startScanner(event) {
+
+    targetId = event.currentTarget.dataset.target;
+
+    if (!("BarcodeDetector" in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+
+      alert("Este navegador no admite escaneo con cámara. Use un lector USB o ingrese el código manualmente.");
+
+      return;
+
+    }
+
+    scanner.hidden = false;
+
+    status.textContent = "Solicitando acceso a la cámara...";
+
+    try {
+
+      detector = new BarcodeDetector({ formats: ["code_128", "qr_code", "ean_13", "ean_8", "upc_a", "upc_e"] });
+
+    } catch (error) {
+
+      scanner.hidden = true;
+
+      alert("El navegador no admite los formatos de código necesarios.");
+
+      return;
+
+    }
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false })
+
+      .then(function (cameraStream) {
+
+        stream = cameraStream;
+
+        preview.srcObject = stream;
+
+        scanning = true;
+
+        status.textContent = "Apunte la cámara al código de barras.";
+
+        requestAnimationFrame(scanFrame);
+
+      })
+
+      .catch(function () {
+
+        status.textContent = "No se pudo acceder a la cámara. Revise los permisos o use HTTPS.";
+
+      });
+
+  }
+
+
+
+  document.querySelectorAll(".scan-camera").forEach(function (button) {
+
+    button.addEventListener("click", startScanner);
+
+  });
+
+  stopButton.addEventListener("click", closeScanner);
+
+})();
+
+
+
+(function () {
+
+  var instanceData = {};
+
+  {% for instance in tool_instances %}
+
+  (function () {
+
+    var key = "{{ instance.product_id }}";
+
+    if (!instanceData[key]) instanceData[key] = [];
+
+    instanceData[key].push({ id: "{{ instance.id }}", label: "{{ instance.product_name|replace('\"', '&quot;') }} - {{ instance.serial_number }} ({{ instance.status }})" });
+
+  })();
+
+  {% endfor %}
+
+  var container = document.getElementById("tool-rows-container");
+
+  if (!container) return;
+
+  var tpl = document.getElementById("tool-product-options-tpl");
+
+  var productOptionsHtml = tpl ? tpl.innerHTML : '<option value="">Seleccionar...</option>';
+
+  function makeInstanceOptions(productId) {
+
+    var html = '<option value="">Control por cantidad</option>';
+
+    (instanceData[String(productId)] || []).forEach(function (inst) {
+
+      html += '<option value="' + inst.id + '">' + inst.label + '</option>';
+
+    });
+
+    return html;
+
+  }
+
+  function addRow() {
+
+    var row = document.createElement("div");
+
+    row.className = "tool-row";
+
+    row.style.cssText = "border:1px solid var(--border,#ddd);border-radius:6px;padding:12px;margin-bottom:8px;";
+
+    row.innerHTML =
+
+      '<div class="form-grid">' +
+
+      '<label>Código de herramienta' +
+
+        '<div class="scan-input">' +
+
+          '<input class="barcode-scan-row" autocomplete="off" placeholder="Escanear código" inputmode="text">' +
+
+        '</div>' +
+
+        '<small class="scan-status" aria-live="polite"></small>' +
+
+      '</label>' +
+
+      '<label>Herramienta<select name="product_id[]" class="tool-row-product" required>' +
+
+        productOptionsHtml +
+
+      '</select></label>' +
+
+      '<label>N° de unidad (opcional)<input type="text" name="unit_serial[]" class="tool-row-serial" placeholder="Ej: 3, PAL-03" autocomplete="off">' +
+
+      '<small class="field-help">Identifica la unidad física. Si no existe en el sistema, se crea automáticamente.</small></label>' +
+
+      '<label>Unidad ya registrada<select name="tool_instance_id[]" class="tool-row-instance">' +
+
+        '<option value="">Sin serial previo</option>' +
+
+      '</select>' +
+
+      '<small class="field-help">Solo si la unidad ya figura en el sistema.</small></label>' +
+
+      '<label>Cantidad<input type="number" name="quantity[]" class="tool-row-qty" value="1" min="1" required></label>' +
+
+      '<div style="display:flex;align-items:flex-end">' +
+
+        '<button type="button" class="remove-tool-row action-link">Quitar</button>' +
+
+      '</div>' +
+
+      '</div>';
+
+    var productSel = row.querySelector(".tool-row-product");
+
+    var instanceSel = row.querySelector(".tool-row-instance");
+
+    var scanInput = row.querySelector(".barcode-scan-row");
+
+    var scanStatus = row.querySelector(".scan-status");
+
+    productSel.addEventListener("change", function () {
+
+      instanceSel.innerHTML = makeInstanceOptions(productSel.value);
+
+    });
+
+    scanInput.addEventListener("keydown", function (event) {
+
+      if (event.key !== "Enter") return;
+
+      event.preventDefault();
+
+      var code = scanInput.value.trim();
+
+      if (!code) return;
+
+      fetch("/api/codigos/" + encodeURIComponent(code))
+
+        .then(function (r) { if (!r.ok) throw new Error("Código no encontrado"); return r.json(); })
+
+        .then(function (data) {
+
+          if (data.type !== "product") throw new Error("El código no corresponde a una herramienta");
+
+          productSel.value = data.item.id;
+
+          instanceSel.innerHTML = makeInstanceOptions(String(data.item.id));
+
+          scanStatus.textContent = data.item.name + " (" + data.item.stock + " disponibles)";
+
+          scanStatus.className = "scan-status scan-ok";
+
+          scanInput.value = "";
+
+        })
+
+        .catch(function (err) {
+
+          scanStatus.textContent = err.message;
+
+          scanStatus.className = "scan-status scan-error";
+
+        });
+
+    });
+
+    row.querySelector(".remove-tool-row").addEventListener("click", function () {
+
+      if (container.children.length > 1) {
+
+        row.remove();
+
+      } else {
+
+        scanStatus.textContent = "Debe haber al menos una herramienta.";
+
+        scanStatus.className = "scan-status scan-error";
+
+      }
+
+    });
+
+    container.appendChild(row);
+
+  }
+
+  document.getElementById("add-tool-row").addEventListener("click", addRow);
+
+  addRow();
+
+})();
+
+
+
+(function () {
+  var masterScan = document.getElementById("material-master-scan");
+  var scanStatus = document.getElementById("material-scan-status");
+  var container = document.getElementById("material-rows-container");
+  var submitBtn = document.getElementById("material-submit-btn");
+  if (!masterScan) return;
+
+  function updateSubmit() {
+    if (submitBtn) submitBtn.disabled = container.children.length === 0;
+  }
+
+  function addMaterialRow(item) {
+    var row = document.createElement("div");
+    row.className = "material-scan-row";
+    row.style.cssText = "border:1px solid var(--border,#ddd);border-radius:6px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:12px;flex-wrap:wrap";
+    var hiddenId = document.createElement("input");
+    hiddenId.type = "hidden";
+    hiddenId.name = "product_id[]";
+    hiddenId.value = item.id;
+    var info = document.createElement("div");
+    info.style.cssText = "flex:1;min-width:140px";
+    info.innerHTML = "<strong>" + item.name + "</strong><br><small style='color:var(--muted,#666)'>" + item.code + " &nbsp;·&nbsp; " + item.stock + " disponibles</small>";
+    var qtyWrap = document.createElement("label");
+    qtyWrap.style.cssText = "display:flex;align-items:center;gap:5px;font-size:.875rem;white-space:nowrap";
+    qtyWrap.appendChild(document.createTextNode("Cant. "));
+    var qty = document.createElement("input");
+    qty.type = "number";
+    qty.name = "quantity[]";
+    qty.value = "1";
+    qty.min = "1";
+    qty.required = true;
+    qty.style.cssText = "width:66px;padding:4px 6px";
+    qtyWrap.appendChild(qty);
+    var rm = document.createElement("button");
+    rm.type = "button";
+    rm.className = "action-link";
+    rm.textContent = "Quitar";
+    rm.addEventListener("click", function () { row.remove(); updateSubmit(); });
+    row.appendChild(hiddenId);
+    row.appendChild(info);
+    row.appendChild(qtyWrap);
+    row.appendChild(rm);
+    container.appendChild(row);
+    updateSubmit();
+  }
+
+  masterScan.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    var code = masterScan.value.trim();
+    if (!code) return;
+    fetch("/api/codigos/" + encodeURIComponent(code))
+      .then(function (r) { if (!r.ok) throw new Error("Código no encontrado"); return r.json(); })
+      .then(function (data) {
+        if (data.type !== "product" || data.item.product_type !== "material") {
+          throw new Error(data.type === "product" ? "El código es de una herramienta, no material" : "Código no reconocido como material");
+        }
+        addMaterialRow(data.item);
+        scanStatus.textContent = "✓ " + data.item.name + " agregado.";
+        scanStatus.className = "scan-status scan-ok";
+        masterScan.value = "";
+        masterScan.focus();
+      })
+      .catch(function (err) {
+        scanStatus.textContent = err.message;
+        scanStatus.className = "scan-status scan-error";
+        masterScan.select();
+      });
+  });
+})();
+
+(function () {
+  var toggleBtn = document.getElementById("material-add-manual-btn");
+  var panel = document.getElementById("material-manual-panel");
+  var select = document.getElementById("material-manual-select");
+  var qtyInput = document.getElementById("material-manual-qty");
+  var addBtn = document.getElementById("material-manual-add-btn");
+  var container = document.getElementById("material-rows-container");
+  var submitBtn = document.getElementById("material-submit-btn");
+  if (!toggleBtn) return;
+
+  toggleBtn.addEventListener("click", function () {
+    var visible = panel.style.display !== "none";
+    panel.style.display = visible ? "none" : "block";
+    toggleBtn.textContent = visible ? "+ Agregar manualmente" : "– Cerrar";
+  });
+
+  addBtn.addEventListener("click", function () {
+    var opt = select.options[select.selectedIndex];
+    if (!opt || !opt.value) { select.focus(); return; }
+    var qty = parseInt(qtyInput.value, 10);
+    if (!qty || qty < 1) { qtyInput.focus(); return; }
+    var item = { id: opt.value, name: opt.dataset.name, code: opt.dataset.code, stock: opt.dataset.stock };
+    var row = document.createElement("div");
+    row.className = "material-scan-row";
+    row.style.cssText = "border:1px solid var(--border,#ddd);border-radius:6px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:12px;flex-wrap:wrap";
+    var hiddenId = document.createElement("input");
+    hiddenId.type = "hidden"; hiddenId.name = "product_id[]"; hiddenId.value = item.id;
+    var info = document.createElement("div");
+    info.style.cssText = "flex:1;min-width:140px";
+    info.innerHTML = "<strong>" + item.name + "</strong><br><small style='color:var(--muted,#666)'>" + item.code + " &nbsp;·&nbsp; " + item.stock + " disponibles</small>";
+    var qtyWrap = document.createElement("label");
+    qtyWrap.style.cssText = "display:flex;align-items:center;gap:5px;font-size:.875rem;white-space:nowrap";
+    qtyWrap.appendChild(document.createTextNode("Cant. "));
+    var qtyField = document.createElement("input");
+    qtyField.type = "number"; qtyField.name = "quantity[]"; qtyField.value = qty;
+    qtyField.min = "1"; qtyField.required = true; qtyField.style.cssText = "width:66px;padding:4px 6px";
+    qtyWrap.appendChild(qtyField);
+    var rm = document.createElement("button");
+    rm.type = "button"; rm.className = "action-link"; rm.textContent = "Quitar";
+    rm.addEventListener("click", function () { row.remove(); if (submitBtn) submitBtn.disabled = container.children.length === 0; });
+    row.appendChild(hiddenId); row.appendChild(info); row.appendChild(qtyWrap); row.appendChild(rm);
+    container.appendChild(row);
+    if (submitBtn) submitBtn.disabled = false;
+    select.value = ""; qtyInput.value = "1";
+  });
+})();
+
+(function () {
+  var masterScan = document.getElementById("tool-master-scan");
+  var masterStatus = document.getElementById("tool-master-status");
+  if (!masterScan) return;
+
+  masterScan.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    var code = masterScan.value.trim();
+    if (!code) return;
+    fetch("/api/codigos/" + encodeURIComponent(code))
+      .then(function (r) { if (!r.ok) throw new Error("Código no encontrado"); return r.json(); })
+      .then(function (data) {
+        if (data.type !== "product" || data.item.product_type !== "herramienta") {
+          throw new Error(data.type === "product" ? "El código es de un material, no herramienta" : "Código no reconocido como herramienta");
+        }
+        document.getElementById("add-tool-row").click();
+        var rows = document.querySelectorAll("#tool-rows-container .tool-row");
+        if (!rows.length) return;
+        var lastRow = rows[rows.length - 1];
+        var productSel = lastRow.querySelector(".tool-row-product");
+        var rowStatus = lastRow.querySelector(".scan-status");
+        if (productSel) {
+          productSel.value = data.item.id;
+          productSel.dispatchEvent(new Event("change"));
+        }
+        if (rowStatus) {
+          rowStatus.textContent = data.item.name + " (" + data.item.stock + " disponibles)";
+          rowStatus.className = "scan-status scan-ok";
+        }
+        masterStatus.textContent = "✓ " + data.item.name + " agregada.";
+        masterStatus.className = "scan-status scan-ok";
+        masterScan.value = "";
+        masterScan.focus();
+      })
+      .catch(function (err) {
+        masterStatus.textContent = err.message;
+        masterStatus.className = "scan-status scan-error";
+        masterScan.select();
+      });
+  });
+})();
+
+</script>
+
+{% endblock %}
+

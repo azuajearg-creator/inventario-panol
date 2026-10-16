@@ -1,0 +1,62 @@
+﻿{% extends "base.html" %}
+{% block title %}Reportes{% endblock %}
+{% block content %}
+<div class="page-heading report-heading">
+  <div><p class="eyebrow">MÓDULO DE LISTADOS</p><h1>Reportes de pañol</h1><p class="muted">Consultá las herramientas que siguen fuera del pañol y el inventario actual.</p></div>
+  <div class="report-actions"><button class="button print-button" onclick="window.print()">Imprimir listado</button><a class="button pdf-button" href="{{ url_for('reports_pdf', employee_id=employee_id or '', category=category) }}">Descargar PDF</a><a class="button export-button" href="{{ url_for('reports_excel', employee_id=employee_id or '', category=category) }}">Excel</a><a class="button export-button" href="{{ url_for('reports_csv', employee_id=employee_id or '', category=category) }}">CSV</a></div>
+</div>
+
+<section class="card report-filters">
+  <form method="get" class="form-grid">
+    <label>Empleado responsable
+      <select name="employee_id">
+        <option value="">Todos los empleados</option>
+        {% for employee in employees %}<option value="{{ employee.id }}" {{ 'selected' if employee_id == employee.id else '' }}>{{ employee.full_name }} — Legajo {{ employee.legajo }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Categoría
+      <select name="category">
+        <option value="">Todas las categorías</option>
+        {% for item in categories %}<option value="{{ item.category }}" {{ 'selected' if category == item.category else '' }}>{{ item.category }}</option>{% endfor %}
+      </select>
+    </label>
+    <div class="filter-actions"><button class="button" type="submit">Aplicar filtros</button><a href="{{ url_for('reports') }}">Limpiar</a></div>
+  </form>
+</section>
+
+<section class="card report-section">
+  <div class="section-heading"><div><h2>Herramientas pendientes de devolución</h2><p class="muted">Elementos entregados a un empleado cuya devolución todavía no fue registrada.</p></div><strong class="report-total">{{ pending|length }} líneas</strong></div>
+  {% if pending %}
+  <table><thead><tr><th>Empleado / legajo</th><th>Herramienta</th><th>Categoría</th><th>Cantidad pendiente</th><th>Última entrega</th></tr></thead><tbody>
+  {% for item in pending %}<tr><td><strong>{{ item.full_name }}</strong><small>{{ item.employee_code }} · Legajo {{ item.legajo }}</small></td><td><strong>{{ item.product_name }}</strong><small>{{ item.product_code }} · {{ item.presentation }}</small></td><td><span class="category-tag {{ category_class(item.category) }}">{{ item.category }}</span></td><td class="danger"><strong>{{ item.pending_quantity }} {{ item.unit }}</strong></td><td>{{ item.last_delivery }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="empty">No hay herramientas pendientes con los filtros seleccionados.</p>{% endif %}
+</section>
+
+<section class="card report-section">
+  <div class="section-heading"><div><h2>Listado de herramientas</h2><p class="muted">Herramientas disponibles en el pañol.</p></div><div style="display:flex;align-items:center;gap:12px"><a class="button pdf-button" href="{{ url_for('reports_pdf_herramientas', category=category) }}">PDF herramientas</a><strong class="report-total">{{ tools|length }} herramientas</strong></div></div>
+  {% if tools %}
+  <table><thead><tr><th>Herramienta</th><th>Marca</th><th>Categoría</th><th>Presentación</th><th>Ubicación</th><th>Stock</th><th>Estado</th></tr></thead><tbody>
+  {% for product in tools %}<tr><td><strong>{{ product.name }}</strong><small>{{ product.code }}</small></td><td>{{ product.brand or '-' }}</td><td><span class="category-tag {{ category_class(product.category) }}">{{ product.category }}</span></td><td>{{ product.presentation }}</td><td>{{ product.location or 'Sin ubicación' }}</td><td><strong>{{ product.stock }} {{ product.unit }}</strong><small>Mín. {{ product.minimum_stock }}</small></td><td>{% if low_stock(product) %}<span class="badge salida">Reponer</span>{% else %}<span class="badge entrada">Disponible</span>{% endif %}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="empty">No hay herramientas registradas.</p>{% endif %}
+</section>
+
+<section class="card report-section">
+  <div class="section-heading"><div><h2>Listado de materiales</h2><p class="muted">Materiales disponibles en el pañol.</p></div><div style="display:flex;align-items:center;gap:12px"><a class="button pdf-button" href="{{ url_for('reports_pdf_materiales', category=category) }}">PDF materiales</a><strong class="report-total">{{ materials|length }} materiales</strong></div></div>
+  {% if materials %}
+  <table><thead><tr><th>Material</th><th>Marca</th><th>Categoría</th><th>Presentación</th><th>Ubicación</th><th>Stock</th><th>Estado</th></tr></thead><tbody>
+  {% for product in materials %}<tr><td><strong>{{ product.name }}</strong><small>{{ product.code }}</small></td><td>{{ product.brand or '-' }}</td><td><span class="category-tag {{ category_class(product.category) }}">{{ product.category }}</span></td><td>{{ product.presentation }}</td><td>{{ product.location or 'Sin ubicación' }}</td><td><strong>{{ product.stock }} {{ product.unit }}</strong><small>Mín. {{ product.minimum_stock }}</small></td><td>{% if low_stock(product) %}<span class="badge salida">Reponer</span>{% else %}<span class="badge entrada">Disponible</span>{% endif %}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="empty">No hay materiales registrados.</p>{% endif %}
+</section>
+
+<section class="card report-section">
+  <div class="section-heading"><div><h2>Listado de empleados</h2><p class="muted">Empleados activos habilitados para recibir materiales y herramientas.</p></div><strong class="report-total">{{ employees|length }} empleados</strong></div>
+  {% if employees %}
+  <table><thead><tr><th>Nombre completo</th><th>Legajo</th><th>Código</th></tr></thead><tbody>
+  {% for employee in employees %}<tr><td><strong>{{ employee.full_name }}</strong></td><td>{{ employee.legajo }}</td><td>{{ employee.code }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="empty">No hay empleados activos registrados.</p>{% endif %}
+</section>
+{% endblock %}

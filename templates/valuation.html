@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Valorización del inventario{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">MÓDULO DE REPORTES</p><h1>Valorización del inventario</h1>
+  <p class="muted">Valor calculado con el stock actual y el costo unitario vigente.</p></div>
+  <div class="filter-actions">
+    <button class="button print-button" onclick="window.print()">Imprimir listado</button>
+    <a class="button" href="{{ url_for('valuation_csv', category=category, product_type=product_type) }}">Exportar CSV</a>
+    <a class="button" href="{{ url_for('valuation_excel', category=category, product_type=product_type) }}">Exportar Excel</a>
+  </div>
+</div>
+<section class="card report-filters">
+  <form method="get" class="form-grid">
+    <label>Categoría<select name="category"><option value="">Todas las categorías</option>
+      {% for item in categories %}<option value="{{ item.category }}" {{ 'selected' if category == item.category else '' }}>{{ item.category }}</option>{% endfor %}
+    </select></label>
+    <label>Tipo<select name="product_type"><option value="">Todos los tipos</option>
+      <option value="material" {{ 'selected' if product_type == 'material' else '' }}>Material</option>
+      <option value="herramienta" {{ 'selected' if product_type == 'herramienta' else '' }}>Herramienta</option>
+    </select></label>
+    <div class="filter-actions"><button class="button" type="submit">Aplicar filtros</button><a href="{{ url_for('inventory_valuation') }}">Limpiar</a></div>
+  </form>
+</section>
+<section class="card report-section">
+  <div class="section-heading"><div><h2>Detalle</h2></div><strong class="report-total">Total general: $ {{ '%.2f'|format(total_value) }}</strong></div>
+  {% if products %}<table><thead><tr><th>Producto</th><th>Tipo</th><th>Categoría</th><th>Stock</th><th>Costo unitario</th><th>Valor total</th></tr></thead><tbody>
+    {% for product in products %}<tr><td><strong>{{ product.name }}</strong><small>{{ product.code }}</small></td><td>{{ product.product_type|capitalize }}</td><td>{{ product.category }}</td><td>{{ product.stock }} {{ product.unit }}</td><td>$ {{ '%.2f'|format(product.unit_cost or 0) }}</td><td><strong>$ {{ '%.2f'|format(product.total_value or 0) }}</strong></td></tr>{% endfor %}
+  </tbody></table>{% else %}<p class="empty">No hay productos para los filtros seleccionados.</p>{% endif %}
+</section>
+{% endblock %}

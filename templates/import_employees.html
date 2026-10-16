@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Carga masiva de empleados{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">MÓDULO DE PERSONAS</p><h1>Carga masiva de empleados</h1><p class="muted">Importe empleados y responsables desde un archivo CSV.</p></div></div>
+<section class="card narrow-card">
+  <h2>Importar archivo</h2>
+  <p class="muted">Los empleados existentes se actualizan por código y los nuevos se crean. La carga se cancela completa si alguna fila tiene errores.</p>
+  <p><a class="button button-small" href="{{ url_for('employees_import_template') }}">Descargar plantilla CSV</a></p>
+  <form method="post" enctype="multipart/form-data" class="form-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label class="full">Archivo CSV<input type="file" name="file" accept=".csv,text/csv" required><small class="field-help">Máximo 5.000 filas y 5 MB. Usar UTF-8.</small></label>
+    <button class="button full" type="submit">Validar e importar empleados</button>
+  </form>
+</section>
+<section class="card">
+  <h2>Columnas del archivo</h2>
+  <p class="muted"><code>code, full_name, legajo, phone, active</code></p>
+  <table>
+    <thead><tr><th>Columna</th><th>Obligatoria</th><th>Descripción</th><th>Ejemplo</th></tr></thead>
+    <tbody>
+      <tr><td><code>code</code></td><td>Sí</td><td>Código único del empleado (usado en barras y QR)</td><td>EMP-001</td></tr>
+      <tr><td><code>full_name</code></td><td>Sí</td><td>Nombre y apellido completo</td><td>Juan Pérez</td></tr>
+      <tr><td><code>legajo</code></td><td>Sí</td><td>Número de legajo (único)</td><td>12345</td></tr>
+      <tr><td><code>phone</code></td><td>No</td><td>Teléfono de contacto</td><td>+54 11 1234-5678</td></tr>
+      <tr><td><code>active</code></td><td>No</td><td>1 = activo (por defecto), 0 = inactivo</td><td>1</td></tr>
+    </tbody>
+  </table>
+</section>
+{% endblock %}

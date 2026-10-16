@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Pendientes de devolución{% endblock %}
+{% block content %}
+
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">MÓDULO DE TRAZABILIDAD</p>
+    <h1>Herramientas pendientes de devolución</h1>
+    <p class="muted">Herramientas que salieron del pañol y aún no fueron devueltas.</p>
+  </div>
+  <div class="report-actions">
+    <button class="button print-button" onclick="window.print()">Imprimir</button>
+    <a class="button export-button" href="{{ url_for('pending_returns_csv', employee_id=employee_id or '') }}">Exportar CSV</a>
+  </div>
+</div>
+
+<section class="card report-filters">
+  <form method="get" class="form-grid">
+    <label>Filtrar por empleado
+      <select name="employee_id">
+        <option value="">Todos los empleados</option>
+        {% for employee in employees %}
+        <option value="{{ employee.id }}" {{ 'selected' if employee_id == employee.id else '' }}>{{ employee.full_name }} — Legajo {{ employee.legajo }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="filter-actions">
+      <button class="button" type="submit">Aplicar filtro</button>
+      <a href="{{ url_for('pending_returns') }}">Limpiar</a>
+    </div>
+  </form>
+</section>
+
+<section class="card report-section">
+  <div class="section-heading">
+    <div>
+      <h2>Unidades individuales entregadas</h2>
+      <p class="muted">Herramientas con número de serie que figuran como entregadas a un empleado.</p>
+    </div>
+    <strong class="report-total">{{ instances|length }} unidades</strong>
+  </div>
+  {% if instances %}
+  <table>
+    <thead>
+      <tr>
+        <th>Empleado / legajo</th>
+        <th>Herramienta</th>
+        <th>N° de serie</th>
+        <th>Categoría</th>
+        <th>Fecha de entrega</th>
+        <th>Días fuera</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for item in instances %}
+    <tr>
+      <td>
+        <strong>{{ item.full_name or 'Sin asignar' }}</strong>
+        {% if item.legajo %}<small>Legajo {{ item.legajo }}</small>{% endif %}
+      </td>
+      <td>
+        <strong>{{ item.product_name }}</strong>
+        <small>{{ item.product_code }}</small>
+      </td>
+      <td><code>{{ item.serial_number }}</code></td>
+      <td>{{ item.category }}</td>
+      <td>{{ item.delivery_date or '-' }}</td>
+      <td class="{{ 'danger' if item.days_out and item.days_out > 30 else '' }}">
+        <strong>{{ item.days_out if item.days_out else '-' }}</strong>{% if item.days_out %} días{% endif %}
+      </td>
+      <td><a class="action-link" href="{{ url_for('movements') }}">Registrar devolución</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No hay unidades individuales entregadas{% if employee_id %} para este empleado{% endif %}.</p>
+  {% endif %}
+</section>
+
+<section class="card report-section">
+  <div class="section-heading">
+    <div>
+      <h2>Herramientas por cantidad pendientes</h2>
+      <p class="muted">Herramientas sin número de serie cuya cantidad entregada supera las devoluciones registradas.</p>
+    </div>
+    <strong class="report-total">{{ qty_pending|length }} líneas</strong>
+  </div>
+  {% if qty_pending %}
+  <table>
+    <thead>
+      <tr>
+        <th>Empleado / legajo</th>
+        <th>Herramienta</th>
+        <th>Categoría</th>
+        <th>Cantidad pendiente</th>
+        <th>Última entrega</th>
+        <th>Asignar N° de unidad</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for item in qty_pending %}
+    <tr>
+      <td>
+        <strong>{{ item.full_name }}</strong>
+        <small>Legajo {{ item.legajo }}</small>
+      </td>
+      <td>
+        <strong>{{ item.product_name }}</strong>
+        <small>{{ item.product_code }}</small>
+      </td>
+      <td>{{ item.category }}</td>
+      <td class="danger"><strong>{{ item.pending_quantity }} {{ item.unit }}</strong></td>
+      <td>{{ item.last_delivery }}</td>
+      <td>
+        <form method="post" action="{{ url_for('assign_unit_to_pending') }}" class="inline-form" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="employee_id" value="{{ item.employee_id }}">
+          <input type="hidden" name="product_id" value="{{ item.product_id }}">
+          <input type="text" name="serial_number" placeholder="Ej: 3, ALR-02" required maxlength="80" style="width:110px">
+          <button type="submit" class="button button-small">Asignar</button>
+        </form>
+        <a class="action-link" href="{{ url_for('movements') }}" style="font-size:0.85em">Registrar devolución</a>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No hay herramientas por cantidad pendientes{% if employee_id %} para este empleado{% endif %}.</p>
+  {% endif %}
+</section>
+
+<section class="card report-section">
+  <div class="section-heading">
+    <div>
+      <h2>Materiales retornables pendientes</h2>
+      <p class="muted">Pilotos, capas de lluvia y otros materiales marcados como retornables que no fueron devueltos al pañol.</p>
+    </div>
+    <strong class="report-total">{{ mat_pending|length }} líneas</strong>
+  </div>
+  {% if mat_pending %}
+  <table>
+    <thead>
+      <tr>
+        <th>Empleado / legajo</th>
+        <th>Material</th>
+        <th>Categoría</th>
+        <th>Cantidad pendiente</th>
+        <th>Última entrega</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for item in mat_pending %}
+    <tr>
+      <td>
+        <strong>{{ item.full_name }}</strong>
+        <small>Legajo {{ item.legajo }}</small>
+      </td>
+      <td>
+        <strong>{{ item.product_name }}</strong>
+        <small>{{ item.product_code }}</small>
+      </td>
+      <td>{{ item.category }}</td>
+      <td class="danger"><strong>{{ item.pending_quantity }} {{ item.unit }}</strong></td>
+      <td>{{ item.last_delivery }}</td>
+      <td><a class="action-link" href="{{ url_for('movements') }}">Registrar devolución</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No hay materiales retornables pendientes{% if employee_id %} para este empleado{% endif %}.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

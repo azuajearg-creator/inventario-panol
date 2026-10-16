@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Modificar producto{% endblock %}
+{% block content %}
+<div class="page-heading"><p class="eyebrow">MÓDULO DE CATÁLOGO</p><h1>Modificar producto</h1><p class="muted">Actualizá los datos de {{ product.name }}.</p></div>
+
+{% if not product.active %}
+<div class="alert error" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+  <span><strong>Producto dado de baja.</strong> No aparece en catálogos ni en formularios de movimiento. El historial de movimientos se conserva intacto.</span>
+  {% if session.get('role') == 'admin' %}
+  <form method="post" action="{{ url_for('restore_product', product_id=product.id) }}" style="margin:0">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="button">Restaurar producto</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+<section class="card narrow-card"><form method="post" class="form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Código / código de barras<input name="code" value="{{ product.code }}" required></label><label>Nombre<input name="name" value="{{ product.name }}" required></label>
+  <label>Marca<input name="brand" value="{{ product.brand or '' }}" placeholder="Ej. Bosch, Makita, 3M"></label><label>Categoría<input name="category" value="{{ product.category }}" required list="cat-list-edit" autocomplete="off"><datalist id="cat-list-edit">{% for c in all_categories %}<option value="{{ c.category }}">{% endfor %}</datalist></label>
+  <label>Tipo<select name="product_type" required><option value="material" {{ 'selected' if product.product_type == 'material' else '' }}>Material</option><option value="herramienta" {{ 'selected' if product.product_type == 'herramienta' else '' }}>Herramienta</option></select></label>
+  <label>Tipo de presentación<input name="presentation" value="{{ product.presentation }}" required></label><label>Unidad de control<input name="unit" value="{{ product.unit }}"></label>
+  <label>Stock actual<input type="number" name="stock" min="0" value="{{ product.stock }}" required></label><label>Stock mínimo<input type="number" name="minimum_stock" min="0" value="{{ product.minimum_stock }}" required></label>
+  <label>Reposición sugerida<input type="number" name="reorder_quantity" min="0" value="{{ product.reorder_quantity or 0 }}"></label>
+  <label>Costo unitario<input type="number" name="unit_cost" min="0" step="0.01" value="{{ product.unit_cost or 0 }}"></label>
+  <label>Proveedor<select name="supplier_id"><option value="">Sin proveedor</option>{% for supplier in suppliers %}<option value="{{ supplier.id }}" {{ 'selected' if product.supplier_id == supplier.id else '' }}>{{ supplier.name }}</option>{% endfor %}</select></label>
+  <label class="full">Ubicación<input name="location" value="{{ product.location or '' }}"></label>
+  {% if product.product_type == 'material' %}
+  <label class="full" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+    <input type="checkbox" name="retornable" value="1" {{ 'checked' if product.retornable else '' }} style="width:auto">
+    Material retornable (piloto, capa de lluvia, arnés, etc.)
+    <small class="field-help">Aparecerá en el reporte de pendientes de devolución.</small>
+  </label>
+  {% endif %}
+  <div class="form-actions full"><button class="button" type="submit">Guardar cambios</button><a href="{{ url_for('products') }}">Cancelar</a></div>
+</form></section>
+
+{% if product.minimum_stock > 0 %}
+  {% set pct_raw = (product.stock * 100 // product.minimum_stock) %}
+  {% set pct = pct_raw if pct_raw <= 100 else 100 %}
+{% else %}
+  {% set pct = 100 %}
+{% endif %}
+{% if product.stock == 0 %}
+  {% set bar_color = '#c62828' %}
+  {% set status_label = 'Sin stock' %}
+{% elif product.minimum_stock > 0 and product.stock < product.minimum_stock %}
+  {% set bar_color = '#e65100' %}
+  {% set status_label = 'Bajo mínimo' %}
+{% else %}
+  {% set bar_color = '#2e7d32' %}
+  {% set status_label = 'Normal' %}
+{% endif %}
+<section class="card narrow-card" style="margin-top:16px">
+  <div class="section-heading"><h2>Estado de stock</h2><a class="button" href="{{ url_for('movements') }}?pid={{ product.id }}&ptype={{ product.product_type }}">Registrar movimiento</a></div>
+  <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+    <div style="flex:1;min-width:200px">
+      <div style="background:#e8e8e8;border-radius:6px;height:14px;overflow:hidden">
+        <div style="height:100%;width:{{ pct }}%;background:{{ bar_color }};border-radius:6px"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:.8rem;color:#6b7785">
+        <span>0</span>
+        {% if product.minimum_stock > 0 %}<span>Mín: {{ product.minimum_stock }} {{ product.unit }}</span>{% endif %}
+        <span>{{ product.stock }} {{ product.unit }}</span>
+      </div>
+    </div>
+    <div style="text-align:center;min-width:110px">
+      <div style="font-size:2rem;font-weight:700;color:{{ bar_color }};line-height:1.1">{{ product.stock }}</div>
+      <small style="color:#6b7785">{{ product.unit }} en stock</small>
+      <div style="margin-top:6px">
+        <span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;font-weight:700;color:#fff;background:{{ bar_color }}">{{ status_label }}</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% if session.get('role') == 'admin' and product.active %}
+<section class="card narrow-card" style="margin-top:16px;border-color:#e74c3c">
+  <div class="section-heading"><h2 style="color:#c0392b">Zona de riesgo</h2></div>
+  <p class="muted" style="margin:0 0 12px">Dar de baja oculta el producto del catálogo y de los formularios. El historial de movimientos se conserva intacto y se puede restaurar en cualquier momento.</p>
+  <form method="post" action="{{ url_for('deactivate_product', product_id=product.id) }}" onsubmit="return confirm('¿Dar de baja «{{ product.name }}»?\nEl historial se conserva y se puede restaurar luego.')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="button" style="background:#c0392b;border-color:#c0392b">Dar de baja producto</button>
+  </form>
+</section>
+{% endif %}
+
+{% if barcode_url %}
+<section class="card narrow-card" style="margin-top:16px">
+  <div class="section-heading"><h2>Código de barras</h2><a class="button" href="{{ url_for('labels') }}" target="_blank">Imprimir etiquetas</a></div>
+  <div style="text-align:center;padding:12px 0">
+    <img src="{{ barcode_url }}" alt="Código de barras {{ product.code }}" style="max-width:260px;height:auto">
+    <p class="muted" style="margin:6px 0 0;font-size:.875rem">{{ product.code }}</p>
+  </div>
+</section>
+{% endif %}
+
+<section class="card" style="margin-top:16px">
+  <div class="section-heading">
+    <h2>Historial de movimientos</h2>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <a class="button" href="{{ url_for('movements') }}?pid={{ product.id }}&ptype={{ product.product_type }}">Registrar movimiento</a>
+      <a class="action-link" href="{{ url_for('product_history_csv', product_id=product.id) }}">Descargar CSV</a>
+      <a class="action-link" href="{{ url_for('movements') }}">Historial completo</a>
+    </div>
+  </div>
+  <canvas id="product-chart" style="max-height:200px;width:100%;margin-bottom:16px"></canvas>
+  {% if product_history %}
+  <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Cantidad</th><th>Responsable</th><th>Remito</th><th>Notas</th></tr></thead><tbody>
+  {% for m in product_history %}
+  <tr>
+    <td>{{ m.movement_date }}<small>{{ m.created_at }}</small></td>
+    <td><span class="badge {{ m.movement_type }}">{{ m.movement_type|capitalize }}</span></td>
+    <td><strong>{{ m.quantity }}</strong></td>
+    <td>{{ m.employee_name or '—' }}</td>
+    <td>{% if m.remito %}<strong>{{ m.remito }}</strong>{% else %}—{% endif %}</td>
+    <td>{{ m.notes or '—' }}</td>
+  </tr>
+  {% endfor %}
+  </tbody></table>
+  {% else %}
+  <p class="empty">Este producto no tiene movimientos registrados.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function () {
+  fetch("/api/product-movements-chart/{{ product.id }}")
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      var canvas = document.getElementById("product-chart");
+      if (!canvas) return;
+      var hasData = data.entrada.some(function(v){return v>0;}) ||
+                    data.salida.some(function(v){return v>0;}) ||
+                    data.devolucion.some(function(v){return v>0;});
+      if (!hasData) { canvas.style.display = "none"; return; }
+      var step = Math.max(1, Math.floor(data.labels.length / 15));
+      var labels = data.labels.map(function(l, i){ return i % step === 0 ? l : ""; });
+      new Chart(canvas, {
+        type: "bar",
+        data: {
+          labels: labels,
+          datasets: [
+            { label: "Entrada",    data: data.entrada,    backgroundColor: "rgba(39,174,96,.75)" },
+            { label: "Salida",     data: data.salida,     backgroundColor: "rgba(231,76,60,.75)" },
+            { label: "Devolución", data: data.devolucion, backgroundColor: "rgba(52,152,219,.75)" }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: "bottom" } },
+          scales: {
+            x: { stacked: false, grid: { display: false } },
+            y: { stacked: false, beginAtZero: true, ticks: { precision: 0 } }
+          }
+        }
+      });
+    })
+    .catch(function(){});
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Auditoría{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">CONTROL Y TRAZABILIDAD</p><h1>Auditoría de operaciones</h1></div></div>
+<section class="card">
+  <form class="search" method="get" aria-label="Filtros de auditoría">
+    <label for="audit-action">Acción</label>
+    <input id="audit-action" name="action" value="{{ action }}" placeholder="crear, actualizar..." autocomplete="off">
+    <label for="audit-entity">Entidad</label>
+    <input id="audit-entity" name="entity" value="{{ entity_type }}" placeholder="producto, movimiento..." autocomplete="off">
+    <label for="audit-search">Usuario o detalle</label>
+    <input id="audit-search" name="q" value="{{ search }}" placeholder="Buscar texto" autocomplete="off">
+    <label for="audit-page-size">Registros por página</label>
+    <select id="audit-page-size" name="page_size">
+      {% for size in [10, 25, 50, 100] %}<option value="{{ size }}" {% if pagination.page_size == size %}selected{% endif %}>{{ size }}</option>{% endfor %}
+    </select>
+    <button type="submit">Filtrar</button>
+    <a class="action-link" href="{{ url_for('audit_report') }}">Limpiar</a>
+  </form>
+  <table><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Entidad</th><th>Detalle</th></tr></thead><tbody>{% for entry in entries %}<tr><td>{{ entry.created_at }}</td><td>{{ entry.username or 'Sistema' }}</td><td>{{ entry.action }}</td><td>{{ entry.entity_type }}{% if entry.entity_id %} #{{ entry.entity_id }}{% endif %}</td><td>{{ entry.details }}</td></tr>{% else %}<tr><td colspan="5" class="empty">No hay operaciones auditadas.</td></tr>{% endfor %}</tbody></table>
+  {% if pagination.pages > 1 %}<nav class="pagination" aria-label="Paginación de auditoría">
+    {% if pagination.page > 1 %}<a href="{{ url_for('audit_report', action=action, entity=entity_type, q=search, page=pagination.page-1, page_size=pagination.page_size) }}" rel="prev">Anterior</a>{% endif %}
+    <span aria-current="page">Página {{ pagination.page }} de {{ pagination.pages }}</span>
+    {% if pagination.page < pagination.pages %}<a href="{{ url_for('audit_report', action=action, entity=entity_type, q=search, page=pagination.page+1, page_size=pagination.page_size) }}" rel="next">Siguiente</a>{% endif %}
+  </nav>{% endif %}
+</section>
+{% endblock %}

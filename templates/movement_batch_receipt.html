@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Comprobante de movimiento{% endblock %}
+{% block content %}
+<style>
+@media print {
+  .sidebar, .logout-form, .session-user, .no-print, .alert { display: none !important; }
+  .container { margin: 0 !important; padding: 8px !important; max-width: 100% !important; }
+  .app-shell { display: block !important; }
+  body { font-size: 12px; background: #fff !important; }
+  .receipt-wrap { box-shadow: none !important; border: 1px solid #ccc; max-width: 100% !important; }
+  a { text-decoration: none; color: inherit; }
+}
+</style>
+
+{% set first = movements[0] %}
+{% set type_labels = {'entrada': 'Entrada / Ingreso', 'salida': 'Entrega / Salida', 'devolucion': 'Devolución', 'ajuste': 'Ajuste de stock'} %}
+
+<div class="page-heading no-print" style="margin-bottom:0">
+  <p class="eyebrow">MOVIMIENTOS</p>
+  <h1>Comprobante de movimiento</h1>
+</div>
+
+<div class="receipt-wrap card" style="max-width:660px;margin:24px auto 0">
+
+  <div style="text-align:center;padding:18px 0 14px;border-bottom:2px solid #1565c0">
+    <p style="font-size:.7rem;font-weight:700;letter-spacing:.12em;color:#6b7785;margin:0 0 4px;text-transform:uppercase">Pañol · Obra Demo</p>
+    <h2 style="margin:0 0 8px;font-size:1.35rem;color:#0d47a1">Comprobante de movimiento</h2>
+    <span class="badge {{ first.movement_type }}" style="font-size:.9rem;padding:4px 16px">{{ type_labels.get(first.movement_type, first.movement_type)|capitalize }}</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;padding:14px 0;border-bottom:1px solid #e8e8e8">
+    <div>
+      <small style="color:#6b7785;display:block">Fecha del movimiento</small>
+      <strong>{{ first.movement_date }}</strong>
+    </div>
+    <div>
+      <small style="color:#6b7785;display:block">Registrado</small>
+      <span>{{ first.created_at or '—' }}</span>
+    </div>
+    {% if first.employee_name %}
+    <div>
+      <small style="color:#6b7785;display:block">Responsable</small>
+      <strong>{{ first.employee_name }}</strong>
+    </div>
+    <div>
+      <small style="color:#6b7785;display:block">Legajo</small>
+      <span>{{ first.legajo or '—' }}</span>
+    </div>
+    {% endif %}
+    {% if first.remito %}
+    <div style="grid-column:1/-1">
+      <small style="color:#6b7785;display:block">Remito N°</small>
+      <strong>{{ first.remito }}</strong>
+    </div>
+    {% endif %}
+  </div>
+
+  <table style="margin-top:12px">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Producto</th>
+        <th>Código</th>
+        <th>N° Serie</th>
+        <th style="text-align:right">Cant.</th>
+        <th>Unidad</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for m in movements %}
+    <tr>
+      <td style="color:#6b7785">{{ loop.index }}</td>
+      <td><strong>{{ m.product_name }}</strong></td>
+      <td><code>{{ m.product_code }}</code></td>
+      <td>{{ m.serial_number or '—' }}</td>
+      <td style="text-align:right;font-weight:700">{{ m.quantity }}</td>
+      <td style="color:#6b7785">{{ m.unit }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" style="text-align:right;font-weight:600;color:#6b7785">Total ítems</td>
+        <td style="text-align:right;font-weight:700">{{ movements|length }}</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  {% if first.notes %}
+  <div style="margin-top:12px;padding:10px 12px;background:#f5f7fa;border-radius:6px;border-left:3px solid #1565c0">
+    <small style="color:#6b7785;display:block;margin-bottom:4px">Observaciones</small>
+    <span>{{ first.notes }}</span>
+  </div>
+  {% endif %}
+
+  <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e8e8e8;display:flex;gap:10px;flex-wrap:wrap;align-items:center" class="no-print">
+    <button onclick="window.print()" class="button">Imprimir comprobante</button>
+    <a class="button" href="{{ url_for('movements') }}" style="background:#546e7a;border-color:#546e7a">Nuevo movimiento</a>
+    <a class="action-link" href="{{ url_for('movements') }}" style="margin-left:auto">Ver historial</a>
+  </div>
+
+  <div style="margin-top:20px;padding-top:10px;border-top:1px dashed #ddd;display:flex;justify-content:space-between;font-size:.72rem;color:#aaa">
+    <span>Comprobante #{{ movements | map(attribute='id') | list | join(', #') }}</span>
+    <span>Sistema de inventario · Pañol Demo</span>
+  </div>
+
+</div>
+{% endblock %}

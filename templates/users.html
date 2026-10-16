@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Usuarios{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">ADMINISTRACIÓN</p><h1>Usuarios y permisos</h1></div></div>
+<div class="grid-2">
+<section class="card"><h2>Nuevo usuario</h2><form method="post" class="form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Usuario<input name="username" required></label>
+  <label>Contraseña<input type="password" name="password" minlength="8" required></label>
+  <label>Rol<select name="role" required><option value="pañolero">Pañolero</option><option value="supervisor">Supervisor</option><option value="consulta">Solo lectura</option><option value="admin">Administrador</option></select></label>
+  <button class="button full" type="submit">Crear usuario</button>
+</form></section>
+<section class="card"><h2>Usuarios registrados</h2><table><thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody>{% for user in users %}<tr><td>{{ user.username }}</td><td>{{ user.role }}</td><td>{{ 'Activo' if user.active else 'Inactivo' }}</td><td style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">{% if user.id != session.get('user_id') %}<form method="post" action="{{ url_for('toggle_user', user_id=user.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="action-link action-button" type="submit">{{ 'Desactivar' if user.active else 'Activar' }}</button></form>{% else %}<span class="muted">Sesión actual</span>{% endif %}<button class="action-link action-button" type="button" onclick="togglePwForm({{ user.id }})">Cambiar contraseña</button></td></tr><tr id="pw-row-{{ user.id }}" hidden><td colspan="4"><form method="post" action="{{ url_for('change_user_password', user_id=user.id) }}" class="form-grid" style="margin:.5rem 0"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label>Nueva contraseña<input type="password" name="new_password" minlength="8" required autocomplete="new-password"></label><label>Confirmar contraseña<input type="password" name="confirm_password" minlength="8" required autocomplete="new-password"></label><button class="button" type="submit">Guardar</button><button class="button button-secondary" type="button" onclick="togglePwForm({{ user.id }})">Cancelar</button></form></td></tr>{% endfor %}</tbody></table></section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function togglePwForm(userId) {
+  var row = document.getElementById('pw-row-' + userId);
+  row.hidden = !row.hidden;
+  if (!row.hidden) row.querySelector('input[type="password"]').focus();
+}
+</script>
+{% endblock %}

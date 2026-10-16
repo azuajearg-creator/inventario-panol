@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Pañol Demo{% endblock %} · Inventario</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Navegación principal">
+      <a class="brand" href="{{ url_for('dashboard') }}">PAÑOL <span>| Obra Demo</span></a>
+      <nav>
+      <a class="module-bubble" href="{{ url_for('dashboard') }}">Inicio</a>
+      <a class="module-bubble" href="{{ url_for('products', tipo='material') }}">Materiales</a>
+      <a class="module-bubble" href="{{ url_for('products', tipo='herramienta') }}">Herramientas</a>
+      <a class="module-bubble" href="{{ url_for('employees') }}">Empleados</a>
+      <a class="module-bubble" href="{{ url_for('labels') }}">Etiquetas imprimibles</a>
+      <a class="module-bubble" href="{{ url_for('reports') }}">Reportes</a>
+      <a class="module-bubble" href="{{ url_for('catalogo_report') }}">Catálogo de stock</a>
+      <a class="module-bubble" href="{{ url_for('pending_returns') }}">Pendientes de devolución</a>
+      {% if session.get('role') in ['admin', 'supervisor', 'pañolero'] %}<a class="module-bubble" href="{{ url_for('devolucion_rapida') }}">Devolución rápida</a>{% endif %}
+      <a class="module-bubble" href="{{ url_for('inventory_valuation') }}">Valorización</a>
+      {% if session.get('role') in ['admin', 'supervisor', 'pañolero'] %}<a class="module-bubble" href="{{ url_for('suppliers') }}">Proveedores</a>{% endif %}
+      <a class="module-bubble" href="{{ url_for('replenishment') }}">Reposición{% if sidebar_alert_count > 0 %} <span style="display:inline-block;background:#c62828;color:#fff;border-radius:10px;padding:1px 7px;font-size:.75rem;font-weight:700;vertical-align:middle;margin-left:4px">{{ sidebar_alert_count }}</span>{% endif %}</a>
+      <a class="module-bubble" href="{{ url_for('purchase_orders') }}">Órdenes de compra</a>
+      {% if session.get('role') in ['admin', 'supervisor', 'pañolero'] %}<a class="module-bubble" href="{{ url_for('tool_instances') }}">Unidades individuales</a>{% endif %}
+      {% if session.get('role') in ['admin', 'supervisor', 'pañolero'] %}<a class="module-bubble" href="{{ url_for('inventory_counts') }}">Inventario físico</a>{% endif %}
+      <a class="button button-small" href="{{ url_for('movements') }}">Registrar movimiento</a>
+      {% if session.get('role') in ['admin', 'supervisor'] %}<a class="module-bubble" href="{{ url_for('audit_report') }}">Auditoría</a>{% endif %}
+      {% if session.get('role') == 'admin' %}<a class="module-bubble" href="{{ url_for('users') }}">Usuarios</a>
+      <form method="post" action="{{ url_for('manual_backup') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="module-bubble">Backup</button>
+      </form>
+      <form method="post" action="{{ url_for('vacuum_db') }}"
+            onsubmit="return confirm('¿Compactar la base de datos? El proceso tarda unos segundos y libera espacio en disco.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="module-bubble">Compactar BD</button>
+      </form>{% endif %}
+      </nav>
+      <span class="session-user">{{ session.get('username') }}</span>
+      <form method="post" action="{{ url_for('logout') }}" class="logout-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="button button-small button-muted">Salir</button>
+      </form>
+    </aside>
+    <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}<div class="alert {{ category }}">{{ message }}</div>{% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+    </main>
+  </div>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

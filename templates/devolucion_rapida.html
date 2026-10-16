@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}Devolución rápida{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Devolución rápida</h1>
+<p class="page-subtitle">Selecciona un empleado para ver todo lo que tiene pendiente y tilda lo que devuelve.</p>
+
+{# ── Selector de empleado ─────────────────────────────────────── #}
+<form method="get" class="card" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+  <div class="field" style="flex:1;min-width:220px">
+    <label for="employee_id">Empleado</label>
+    <select name="employee_id" id="employee_id" required onchange="this.form.submit()">
+      <option value="">— Seleccionar empleado —</option>
+      {% for emp in employees %}
+        <option value="{{ emp.id }}" {{ 'selected' if emp.id == employee_id }}>
+          {{ emp.full_name }} {% if emp.legajo %}(leg. {{ emp.legajo }}){% endif %}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+{% if employee_id %}
+  {% set total_items = instances|length + qty_pending|length + mat_pending|length %}
+
+  {% if total_items == 0 %}
+    <div class="alert success" style="margin-top:16px">
+      ✓ Este empleado no tiene ítems pendientes de devolución.
+    </div>
+
+  {% else %}
+  <form method="post" id="form-devolucion">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="employee_id" value="{{ employee_id }}">
+
+    {# ── Cabecera con fecha y notas ──────────────────────────────── #}
+    <div class="card" style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-top:12px">
+      <div class="field" style="min-width:160px">
+        <label for="movement_date">Fecha de devolución</label>
+        <input type="date" name="movement_date" id="movement_date" value="{{ today }}" required>
+      </div>
+      <div class="field" style="flex:1;min-width:240px">
+        <label for="notes">Observaciones <small>(opcional)</small></label>
+        <input type="text" name="notes" id="notes" maxlength="500" placeholder="Estado del ítem, aclaraciones…">
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;padding-bottom:4px">
+        <button type="button" class="button button-small button-muted" onclick="toggleAll(true)">Tildar todo</button>
+        <button type="button" class="button button-small button-muted" onclick="toggleAll(false)">Limpiar</button>
+      </div>
+    </div>
+
+    {# ── Herramientas individualizadas ──────────────────────────── #}
+    {% if instances %}
+    <section class="card" style="margin-top:12px">
+      <h2 style="margin-bottom:10px">Herramientas individualizadas
+        <span class="badge">{{ instances|length }}</span>
+      </h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:40px">
+              <input type="checkbox" title="Tildar todas" onchange="toggleSection('inst',this.checked)">
+            </th>
+            <th>Herramienta</th>
+            <th>N.° serie / código</th>
+            <th>Categoría</th>
+            <th>Días fuera</th>
+            <th>Entregada</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inst in instances %}
+          <tr class="{{ 'row-danger' if inst.days_out > 30 else ('row-warning' if inst.days_out > 14) }}">
+            <td style="text-align:center">
+              <input type="checkbox" class="chk-inst" name="instance_ids[]" value="{{ inst.id }}" checked>
+            </td>
+            <td><strong>{{ inst.product_name }}</strong></td>
+            <td><code>{{ inst.serial_number or inst.product_code }}</code></td>
+            <td>{{ inst.category }}</td>
+            <td>
+              <span class="{{ 'badge salida' if inst.days_out > 30 else ('badge devolucion' if inst.days_out > 14 else 'badge entrada') }}">
+                {{ inst.days_out }} días
+              </span>
+            </td>
+            <td>{{ inst.delivery_date or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    {# ── Herramientas por cantidad ──────────────────────────────── #}
+    {% if qty_pending %}
+    <section class="card" style="margin-top:12px">
+      <h2 style="margin-bottom:10px">Herramientas por cantidad
+        <span class="badge">{{ qty_pending|length }}</span>
+      </h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:40px">
+              <input type="checkbox" title="Tildar todas" onchange="toggleSection('qty',this.checked)">
+            </th>
+            <th>Herramienta</th>
+            <th>Categoría</th>
+            <th>Pendiente</th>
+            <th style="width:110px">Devuelve</th>
+            <th>Última entrega</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in qty_pending %}
+          <tr>
+            <td style="text-align:center">
+              <input type="checkbox" class="chk-qty" checked onchange="toggleQtyRow(this)">
+            </td>
+            <td><strong>{{ item.product_name }}</strong> <small class="text-muted">{{ item.product_code }}</small></td>
+            <td>{{ item.category }}</td>
+            <td><strong>{{ item.pending_quantity }}</strong> {{ item.unit }}</td>
+            <td>
+              <input type="hidden" name="qty_pid[]" value="{{ item.product_id }}">
+              <input type="number" name="qty_qty[]" class="qty-input-qty"
+                     value="{{ item.pending_quantity }}"
+                     min="1" max="{{ item.pending_quantity }}"
+                     style="width:80px;text-align:center">
+            </td>
+            <td>{{ item.last_delivery or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    {# ── Materiales retornables ─────────────────────────────────── #}
+    {% if mat_pending %}
+    <section class="card" style="margin-top:12px">
+      <h2 style="margin-bottom:10px">Materiales retornables
+        <span class="badge">{{ mat_pending|length }}</span>
+      </h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:40px">
+              <input type="checkbox" title="Tildar todas" onchange="toggleSection('mat',this.checked)">
+            </th>
+            <th>Material</th>
+            <th>Categoría</th>
+            <th>Pendiente</th>
+            <th style="width:110px">Devuelve</th>
+            <th>Última entrega</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in mat_pending %}
+          <tr>
+            <td style="text-align:center">
+              <input type="checkbox" class="chk-qty" checked onchange="toggleQtyRow(this)">
+            </td>
+            <td><strong>{{ item.product_name }}</strong> <small class="text-muted">{{ item.product_code }}</small></td>
+            <td>{{ item.category }}</td>
+            <td><strong>{{ item.pending_quantity }}</strong> {{ item.unit }}</td>
+            <td>
+              <input type="hidden" name="qty_pid[]" value="{{ item.product_id }}">
+              <input type="number" name="qty_qty[]" class="qty-input-qty"
+                     value="{{ item.pending_quantity }}"
+                     min="1" max="{{ item.pending_quantity }}"
+                     style="width:80px;text-align:center">
+            </td>
+            <td>{{ item.last_delivery or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    {# ── Botón submit ──────────────────────────────────────────── #}
+    <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:12px">
+      <a href="{{ url_for('pending_returns', employee_id=employee_id) }}" class="button button-muted">
+        Ver pendientes completos
+      </a>
+      <button type="submit" class="button" id="btn-submit">
+        Registrar devoluciones seleccionadas
+      </button>
+    </div>
+  </form>
+  {% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleSection(prefix, checked) {
+  const cls = prefix === 'inst' ? 'chk-inst' : 'chk-qty';
+  document.querySelectorAll('.' + cls).forEach(cb => {
+    cb.checked = checked;
+    if (prefix !== 'inst') toggleQtyRow(cb);
+  });
+}
+
+function toggleAll(checked) {
+  document.querySelectorAll('.chk-inst, .chk-qty').forEach(cb => {
+    cb.checked = checked;
+    if (cb.classList.contains('chk-qty')) toggleQtyRow(cb);
+  });
+  document.querySelectorAll('input[type=checkbox][title="Tildar todas"]').forEach(cb => {
+    cb.checked = checked;
+  });
+}
+
+function toggleQtyRow(cb) {
+  const row = cb.closest('tr');
+  const qtyInput = row.querySelector('.qty-input-qty');
+  if (!qtyInput) return;
+  qtyInput.disabled = !cb.checked;
+  if (cb.checked && parseInt(qtyInput.value) < 1) qtyInput.value = qtyInput.max;
+}
+
+/* Antes de enviar: los inputs deshabilitados no se envían,
+   pero los hidden qty_pid[] sí — necesitamos enviar qty=0 para que
+   el servidor los ignore. Re-habilitamos con valor 0. */
+document.getElementById('form-devolucion')?.addEventListener('submit', function() {
+  this.querySelectorAll('.qty-input-qty:disabled').forEach(inp => {
+    inp.disabled = false;
+    inp.value = 0;
+  });
+});
+</script>
+{% endblock %}

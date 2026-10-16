@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ order.order_number }}{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">ORDEN DE COMPRA</p><h1>{{ order.order_number }}</h1><p class="muted">{{ order.supplier_name }} · {{ order.status|capitalize }} · {{ order.order_date }}</p></div></div>
+<section class="card"><p>{{ order.notes or 'Sin notas.' }}</p>
+{% if session.get('role') in ['admin','supervisor','pañolero'] and order.status == 'borrador' %}
+<form method="post" action="{{ url_for('purchase_order_add_item', order_id=order.id) }}" class="form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label>Producto<select name="product_id" required><option value="">Seleccione…</option>{% for product in products %}<option value="{{ product.id }}">{{ product.code }} — {{ product.name }}</option>{% endfor %}</select></label>
+<label>Cantidad<input type="number" name="quantity_requested" min="1" required></label><label>Costo unitario<input type="number" name="unit_cost" min="0" step="0.01"></label><button class="button" type="submit">Agregar ítem</button></form>
+{% endif %}</section>
+<section class="card"><table><thead><tr><th>Producto</th><th>Solicitada</th><th>Recibida</th><th>Costo</th>{% if order.status in ['solicitada','parcial'] and session.get('role') in ['admin','supervisor','pañolero'] %}<th>Recibir</th>{% endif %}</tr></thead><tbody>
+{% for item in items %}<tr><td>{{ item.name }}<small>{{ item.code }}</small></td>{% if order.status == 'borrador' and session.get('role') in ['admin','supervisor','pañolero'] %}<td colspan="3"><form method="post" action="{{ url_for('purchase_order_edit_item', order_id=order.id, item_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="number" name="quantity_requested" min="1" value="{{ item.quantity_requested }}"><input type="number" name="unit_cost" min="0" step="0.01" value="{{ item.unit_cost or '' }}"><button class="button button-small" type="submit">Guardar</button></form></td>{% else %}<td>{{ item.quantity_requested }} {{ item.unit }}</td><td>{{ item.quantity_received }}</td><td>{{ item.unit_cost if item.unit_cost is not none else '—' }}</td>{% endif %}{% if order.status in ['solicitada','parcial'] and session.get('role') in ['admin','supervisor','pañolero'] %}<td><input form="receive-form" type="number" name="received_{{ item.id }}" min="0" max="{{ item.quantity_requested - item.quantity_received }}" value="0"></td>{% endif %}</tr>
+{% else %}<tr><td colspan="5">No hay ítems.</td></tr>{% endfor %}</tbody></table>
+{% if order.status in ['solicitada','parcial'] and session.get('role') in ['admin','supervisor','pañolero'] %}<form id="receive-form" method="post" action="{{ url_for('purchase_order_receive', order_id=order.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="receipt_token" value="{{ receipt_token }}"><button class="button" type="submit">Registrar recepción</button></form>{% endif %}
+</section>
+{% if session.get('role') in ['admin','supervisor','pañolero'] %}
+<div class="actions">{% if order.status == 'borrador' %}<form method="post" action="{{ url_for('purchase_order_request', order_id=order.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button" type="submit">Solicitar orden</button></form>{% endif %}{% if order.status not in ['cancelada','recibida'] %}<form method="post" action="{{ url_for('purchase_order_cancel', order_id=order.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button button-muted" type="submit">Cancelar</button></form>{% endif %}</div>
+{% endif %}
+{% endblock %}

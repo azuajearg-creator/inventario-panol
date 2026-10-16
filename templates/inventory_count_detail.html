@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Conteo físico{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">INVENTARIO FÍSICO #{{ count.id }}</p><h1>{{ count.name }}</h1><p class="muted">Fecha: {{ count.count_date }} · Estado: {{ 'Cerrado' if count.status == 'closed' else 'Abierto' }}</p></div></div>
+<section class="card">
+{% if count.status == 'open' %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Stock teórico</th><th>Stock contado</th><th>Diferencia</th></tr></thead><tbody>{% for item in items %}<tr><td><strong>{{ item.name }}</strong><small>{{ item.code }}{% if item.brand %} · {{ item.brand }}{% endif %}</small></td><td>{{ item.category }}</td><td>{{ item.theoretical_stock }} {{ item.unit }}</td><td><input type="number" min="0" name="counted_{{ item.id }}" value="{{ item.counted_stock if item.counted_stock is not none else '' }}" required></td><td>{% if item.counted_stock is not none %}{{ item.counted_stock - item.theoretical_stock }}{% else %}Pendiente{% endif %}</td></tr>{% else %}<tr><td colspan="5" class="empty">No hay productos para contar.</td></tr>{% endfor %}</tbody></table>{% if items %}<div class="form-actions"><button class="button" type="submit">Guardar conteo</button></div></form>{% endif %}{% else %}<table><thead><tr><th>Producto</th><th>Categoría</th><th>Stock teórico</th><th>Stock contado</th><th>Diferencia</th></tr></thead><tbody>{% for item in items %}<tr><td><strong>{{ item.name }}</strong><small>{{ item.code }}</small></td><td>{{ item.category }}</td><td>{{ item.theoretical_stock }} {{ item.unit }}</td><td>{{ item.counted_stock }}</td><td>{{ item.counted_stock - item.theoretical_stock }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+</section>
+{% if count.status == 'open' and items and session.get('role') in ['admin', 'supervisor'] %}<section class="card"><h2>Cerrar inventario y aplicar diferencias</h2><p class="muted">Esta acción crea movimientos de ajuste y no puede deshacerse automáticamente. Verifique el conteo antes de continuar.</p><form method="post" action="{{ url_for('close_inventory_count', count_id=count.id) }}" id="close-count-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button" type="submit" id="close-count-btn">Cerrar y aplicar ajustes</button></form></section>
+<script>
+document.getElementById('close-count-form').addEventListener('submit', function(e) {
+  var btn = document.getElementById('close-count-btn');
+  if (btn.disabled) { e.preventDefault(); return; }
+  btn.disabled = true;
+  btn.textContent = 'Procesando…';
+});
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}Catálogo de inventario{% endblock %}
+
+{% block content %}
+
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">MÓDULO DE REPORTES</p>
+    <h1>Catálogo de inventario</h1>
+    <p class="muted">Listado de materiales y herramientas clasificados por categoría.</p>
+  </div>
+  <div class="report-actions">
+    <button class="button print-button" onclick="window.print()">Imprimir</button>
+    <a class="button export-button" id="csv-link"
+       href="{{ url_for('catalogo_report_csv', tipo=tipo, stock_filter=stock_filter) }}{% for c in categorias %}&categoria={{ c|urlencode }}{% endfor %}">Exportar CSV</a>
+  </div>
+</div>
+
+{# ── FILTROS ── #}
+<section class="card report-filters no-print">
+  <form method="get" id="filter-form">
+
+    <div class="filter-row" style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+
+      <fieldset style="border:none;padding:0;margin:0">
+        <legend style="font-weight:600;margin-bottom:8px;font-size:0.85rem;text-transform:uppercase;letter-spacing:.04em">Tipo</legend>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <label class="radio-chip">
+            <input type="radio" name="tipo" value="" {{ 'checked' if not tipo }}> Todo
+          </label>
+          <label class="radio-chip">
+            <input type="radio" name="tipo" value="material" {{ 'checked' if tipo == 'material' }}> Materiales
+          </label>
+          <label class="radio-chip">
+            <input type="radio" name="tipo" value="herramienta" {{ 'checked' if tipo == 'herramienta' }}> Herramientas
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset style="border:none;padding:0;margin:0">
+        <legend style="font-weight:600;margin-bottom:8px;font-size:0.85rem;text-transform:uppercase;letter-spacing:.04em">Estado de stock</legend>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <label class="radio-chip">
+            <input type="radio" name="stock_filter" value="" {{ 'checked' if not stock_filter }}> Todos
+          </label>
+          <label class="radio-chip">
+            <input type="radio" name="stock_filter" value="disponible" {{ 'checked' if stock_filter == 'disponible' }}> Con stock
+          </label>
+          <label class="radio-chip">
+            <input type="radio" name="stock_filter" value="bajo" {{ 'checked' if stock_filter == 'bajo' }}> Stock bajo
+          </label>
+          <label class="radio-chip">
+            <input type="radio" name="stock_filter" value="sin" {{ 'checked' if stock_filter == 'sin' }}> Sin stock
+          </label>
+        </div>
+      </fieldset>
+
+    </div>
+
+    <fieldset style="border:none;padding:0;margin:16px 0 0">
+      <legend style="font-weight:600;margin-bottom:8px;font-size:0.85rem;text-transform:uppercase;letter-spacing:.04em">
+        Categorías
+        <button type="button" class="action-link" id="sel-all" style="margin-left:12px;font-size:0.8rem">Todas</button>
+        <button type="button" class="action-link" id="sel-none" style="margin-left:6px;font-size:0.8rem">Ninguna</button>
+      </legend>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="cat-checkboxes">
+        {% for cat in all_categories %}
+        <label class="category-chip">
+          <input type="checkbox" name="categoria" value="{{ cat.category }}"
+                 {{ 'checked' if cat.category in categorias }}>
+          {{ cat.category }}
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <div style="margin-top:16px;display:flex;gap:12px;align-items:center">
+      <button class="button" type="submit">Aplicar filtros</button>
+      <a href="{{ url_for('catalogo_report') }}">Limpiar</a>
+    </div>
+
+  </form>
+</section>
+
+{# ── RESUMEN ── #}
+{% if total %}
+<div class="no-print" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+  <div class="stat-chip"><strong>{{ total }}</strong> ítems totales</div>
+  {% if total_mat %}<div class="stat-chip"><strong>{{ total_mat }}</strong> materiales</div>{% endif %}
+  {% if total_her %}<div class="stat-chip"><strong>{{ total_her }}</strong> herramientas</div>{% endif %}
+  <div class="stat-chip"><strong>{{ grouped|length }}</strong> categorías</div>
+</div>
+{% endif %}
+
+{# ── RESULTADOS POR CATEGORÍA ── #}
+{% if grouped %}
+  {% for category, items in grouped.items() %}
+  <section class="card report-section catalog-category">
+    <div class="section-heading">
+      <div>
+        <h2 style="margin:0;font-size:1.05rem;display:flex;align-items:center;gap:10px">
+          <span class="category-tag {{ category_class(category) }}">{{ category }}</span>
+        </h2>
+      </div>
+      <strong class="report-total">{{ items|length }} ítems</strong>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Nombre</th>
+          <th>Tipo</th>
+          <th>Marca</th>
+          <th>Presentación</th>
+          <th>Ubicación</th>
+          <th>Stock</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for item in items %}
+        {% if item.stock == 0 %}
+          {% set estado = 'sin' %}{% set estado_label = 'Sin stock' %}
+        {% elif item.stock <= item.minimum_stock %}
+          {% set estado = 'bajo' %}{% set estado_label = 'Stock bajo' %}
+        {% else %}
+          {% set estado = 'ok' %}{% set estado_label = 'Disponible' %}
+        {% endif %}
+      <tr class="{{ 'row-warning' if estado == 'bajo' else ('row-danger' if estado == 'sin' else '') }}">
+        <td><code>{{ item.code }}</code></td>
+        <td><strong>{{ item.name }}</strong></td>
+        <td>
+          <span class="badge {{ 'entrada' if item.product_type == 'material' else 'ajuste' }}">
+            {{ 'Material' if item.product_type == 'material' else 'Herramienta' }}
+          </span>
+        </td>
+        <td>{{ item.brand or '–' }}</td>
+        <td>{{ item.presentation }}<small>{{ item.unit }}</small></td>
+        <td>{{ item.location or '–' }}</td>
+        <td>
+          <strong>{{ item.stock }}</strong>
+          <small>Mín. {{ item.minimum_stock }}</small>
+        </td>
+        <td>
+          <span class="badge {{ 'entrada' if estado == 'ok' else ('salida' if estado == 'sin' else 'devolucion') }}">
+            {{ estado_label }}
+          </span>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endfor %}
+{% else %}
+<section class="card">
+  <p class="empty">No hay ítems que coincidan con los filtros seleccionados.</p>
+</section>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .radio-chip {
+    display:inline-flex;align-items:center;gap:6px;padding:5px 14px;
+    border:1px solid var(--border,#ddd);border-radius:20px;cursor:pointer;
+    font-size:0.875rem;user-select:none;transition:background .15s,border-color .15s;
+  }
+  .radio-chip input[type=radio] { display:none }
+  .radio-chip.chip-active {
+    background:var(--accent,#2563eb);color:#fff;border-color:var(--accent,#2563eb);
+  }
+  .category-chip {
+    display:inline-flex;align-items:center;gap:5px;padding:4px 10px;
+    border:1px solid var(--border,#ddd);border-radius:16px;cursor:pointer;
+    font-size:0.8rem;user-select:none;transition:background .12s,border-color .12s;
+  }
+  .category-chip input[type=checkbox] { display:none }
+  .category-chip.chip-checked {
+    background:var(--accent-light,#eff6ff);border-color:var(--accent,#2563eb);
+    color:var(--accent,#2563eb);font-weight:600;
+  }
+  .stat-chip {
+    padding:6px 14px;background:var(--surface2,#f8f9fa);border-radius:8px;
+    font-size:0.875rem;color:var(--muted,#666);
+  }
+  .stat-chip strong { color:var(--text,#111) }
+  .row-warning td { background:rgba(245,158,11,.06) }
+  .row-danger td  { background:rgba(239,68,68,.06) }
+  @media print {
+    .no-print { display:none !important }
+    .card { box-shadow:none;border:1px solid #ddd }
+    .catalog-category { page-break-inside:avoid }
+  }
+</style>
+<script>
+(function () {
+  function syncChips(group, inputType) {
+    group.querySelectorAll('label').forEach(function (lbl) {
+      var inp = lbl.querySelector('input[type=' + inputType + ']');
+      lbl.classList.toggle('chip-active', inp && inp.checked);
+      lbl.classList.toggle('chip-checked', inp && inp.checked);
+    });
+  }
+
+  document.querySelectorAll('.radio-chip input[type=radio]').forEach(function (r) {
+    var fieldset = r.closest('fieldset');
+    syncChips(fieldset, 'radio');
+    r.addEventListener('change', function () { syncChips(fieldset, 'radio'); });
+  });
+
+  var checkboxes = document.querySelectorAll('#cat-checkboxes input[type=checkbox]');
+  checkboxes.forEach(function (c) {
+    c.closest('label').classList.toggle('chip-checked', c.checked);
+    c.addEventListener('change', function () {
+      c.closest('label').classList.toggle('chip-checked', c.checked);
+    });
+  });
+
+  document.getElementById('sel-all').addEventListener('click', function () {
+    checkboxes.forEach(function (c) {
+      c.checked = true;
+      c.closest('label').classList.add('chip-checked');
+    });
+  });
+  document.getElementById('sel-none').addEventListener('click', function () {
+    checkboxes.forEach(function (c) {
+      c.checked = false;
+      c.closest('label').classList.remove('chip-checked');
+    });
+  });
+})();
+</script>
+{% endblock %}

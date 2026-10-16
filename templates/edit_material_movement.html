@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Corregir movimiento{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <p class="eyebrow">MÓDULO DE TRAZABILIDAD</p>
+  <h1>Corregir movimiento de material</h1>
+  <p class="muted">Solo podés modificar el responsable y la nota. El resto del movimiento queda protegido.</p>
+</div>
+<section class="card narrow-card">
+  <div class="movement-summary">
+    <strong>{{ movement.product_name }}</strong>
+    <span>{{ movement.product_code }} · {{ movement.movement_type|capitalize }} · {{ movement.quantity }} unidades</span>
+    <span>Fecha del movimiento: {{ movement.movement_date }}</span>
+  </div>
+  <form method="post" class="form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>Responsable de entrega
+      <select name="employee_id" {{ 'required' if movement.movement_type == 'salida' else '' }}>
+        <option value="">No corresponde</option>
+        {% for employee in employees %}<option value="{{ employee.id }}" {{ 'selected' if movement.employee_id == employee.id else '' }}>{{ employee.full_name }} — Legajo {{ employee.legajo }}</option>{% endfor %}
+      </select>
+      {% if movement.movement_type == 'salida' %}<small class="field-help">Obligatorio para una salida de material.</small>{% endif %}
+    </label>
+    <label class="full">Nota / observaciones
+      <input name="notes" value="{{ movement.notes or '' }}" placeholder="Frente de obra, motivo o referencia">
+    </label>
+    <div class="form-actions full"><button class="button" type="submit">Guardar corrección</button><a href="{{ url_for('movements') }}">Cancelar</a></div>
+  </form>
+</section>
+{% endblock %}

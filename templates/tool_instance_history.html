@@ -1,0 +1,71 @@
+﻿{% extends "base.html" %}
+{% block title %}Historial de herramienta{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">TRAZABILIDAD DE ACTIVO</p>
+    <h1>Historial de herramienta</h1>
+    <p class="muted"><a class="action-link" href="{{ url_for('tool_instances') }}">Volver a herramientas</a></p>
+  </div>
+</div>
+<section class="card">
+  <h2>{{ instance.product_name }}</h2>
+  <div class="form-grid">
+    <p><strong>Número de serie</strong><br><code>{{ instance.serial_number }}</code></p>
+    <p><strong>Código</strong><br>{{ instance.product_code }}</p>
+    <p><strong>Estado actual</strong><br>{{ instance.status }}</p>
+    <p><strong>Responsable actual</strong><br>{{ instance.employee_name or 'En pañol' }}</p>
+  </div>
+  {% if instance.notes %}<p><strong>Observaciones:</strong> {{ instance.notes }}</p>{% endif %}
+</section>
+<section class="card">
+  <h2>Historial de estados</h2>
+  {% if status_history %}
+  <table>
+    <thead><tr><th>Fecha</th><th>Transición</th><th>Usuario</th><th>Motivo</th></tr></thead>
+    <tbody>{% for change in status_history %}
+      <tr>
+        <td>{{ change.changed_at }}</td>
+        <td><span class="badge">{{ change.previous_status }}</span> → <span class="badge">{{ change.new_status }}</span></td>
+        <td>{{ change.username or 'No disponible' }}</td>
+        <td>{{ change.notes or '-' }}</td>
+      </tr>
+    {% endfor %}</tbody>
+  </table>
+  {% else %}<p class="empty">No hay cambios de estado registrados.</p>{% endif %}
+  {% if status_pagination.pages > 1 %}
+  <nav class="pagination" aria-label="Paginación del historial de estados">
+    {% if status_pagination.page > 1 %}<a href="{{ url_for('tool_instance_history', instance_id=instance.id, status_page=status_pagination.page-1, movement_page=movement_pagination.page, page_size=status_pagination.page_size) }}" rel="prev">Anterior</a>{% endif %}
+    <span aria-current="page">Página {{ status_pagination.page }} de {{ status_pagination.pages }}</span>
+    {% if status_pagination.page < status_pagination.pages %}<a href="{{ url_for('tool_instance_history', instance_id=instance.id, status_page=status_pagination.page+1, movement_page=movement_pagination.page, page_size=status_pagination.page_size) }}" rel="next">Siguiente</a>{% endif %}
+  </nav>
+  {% endif %}
+</section>
+<section class="card">
+  <h2>Movimientos</h2>
+  {% if movements %}
+  <table>
+    <thead><tr><th>Fecha</th><th>Tipo</th><th>Cantidad</th><th>Empleado</th><th>Notas</th><th>Usuario</th></tr></thead>
+    <tbody>
+      {% for movement in movements %}
+      <tr>
+        <td>{{ movement.movement_date }}<small>Registrado {{ movement.created_at }}</small></td>
+        <td><span class="badge {{ movement.movement_type }}">{{ movement.movement_type|capitalize }}</span></td>
+        <td>{{ movement.quantity }}</td>
+        <td>{{ movement.employee_name or '-' }}</td>
+        <td>{{ movement.notes or '-' }}</td>
+        <td>{{ movement.username or 'No disponible' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="empty">No hay movimientos registrados para esta unidad.</p>{% endif %}
+  {% if movement_pagination.pages > 1 %}
+  <nav class="pagination" aria-label="Paginación de movimientos">
+    {% if movement_pagination.page > 1 %}<a href="{{ url_for('tool_instance_history', instance_id=instance.id, movement_page=movement_pagination.page-1, status_page=status_pagination.page, page_size=movement_pagination.page_size) }}" rel="prev">Anterior</a>{% endif %}
+    <span aria-current="page">Página {{ movement_pagination.page }} de {{ movement_pagination.pages }}</span>
+    {% if movement_pagination.page < movement_pagination.pages %}<a href="{{ url_for('tool_instance_history', instance_id=instance.id, movement_page=movement_pagination.page+1, status_page=status_pagination.page, page_size=movement_pagination.page_size) }}" rel="next">Siguiente</a>{% endif %}
+  </nav>
+  {% endif %}
+</section>
+{% endblock %}

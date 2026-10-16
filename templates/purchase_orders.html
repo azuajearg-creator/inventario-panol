@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Órdenes de compra{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">ABASTECIMIENTO</p><h1>Órdenes de compra</h1></div></div>
+{% if session.get('role') in ['admin','supervisor','pañolero'] %}
+<section class="card"><h2>Nueva orden</h2><form method="post" class="form-grid">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Proveedor<select name="supplier_id" required><option value="">Seleccione…</option>{% for supplier in suppliers %}<option value="{{ supplier.id }}">{{ supplier.name }}</option>{% endfor %}</select></label>
+  <label>Fecha<input type="date" name="order_date" value="{{ today }}" required></label>
+  <label class="wide">Notas<textarea name="notes"></textarea></label><button class="button" type="submit">Crear borrador</button>
+</form></section>
+{% endif %}
+<section class="card">
+  <div class="section-heading">
+    <h2>Listado ({{ pagination.total }})</h2>
+    <form class="search" method="get" role="search" aria-label="Filtrar órdenes de compra">
+      <input type="hidden" name="page_size" value="{{ pagination.page_size }}">
+      <label for="order-search">Número o notas</label>
+      <input id="order-search" name="q" value="{{ search }}" placeholder="Buscar..." aria-label="Buscar por número de orden o notas">
+      <label for="order-status">Estado</label>
+      <select id="order-status" name="status" aria-label="Filtrar por estado">
+        <option value="">Todos los estados</option>
+        {% for order_status in ['borrador', 'solicitada', 'parcial', 'recibida', 'cancelada'] %}
+        <option value="{{ order_status }}" {% if status == order_status %}selected{% endif %}>{{ order_status|capitalize }}</option>
+        {% endfor %}
+      </select>
+      <label for="order-supplier">Proveedor</label>
+      <select id="order-supplier" name="supplier_id" aria-label="Filtrar por proveedor">
+        <option value="">Todos los proveedores</option>
+        {% for supplier in filter_suppliers %}
+        <option value="{{ supplier.id }}" {% if supplier_id_filter == supplier.id|string %}selected{% endif %}>{{ supplier.name }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Buscar</button>
+      <a class="action-link" href="{{ url_for('purchase_orders') }}">Limpiar</a>
+    </form>
+  </div>
+  <table><thead><tr><th>Número</th><th>Proveedor</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>
+{% for order in orders %}<tr><td><a href="{{ url_for('purchase_order_detail', order_id=order.id) }}"><strong>{{ order.order_number }}</strong></a></td><td>{{ order.supplier_name }}</td><td>{{ order.order_date }}</td><td><span class="badge">{{ order.status|capitalize }}</span></td></tr>{% else %}<tr><td colspan="4">No hay órdenes de compra.</td></tr>{% endfor %}
+</tbody></table>
+  {% if pagination.pages > 1 %}
+  <nav class="pagination" aria-label="Paginación de órdenes de compra">
+    {% if pagination.page > 1 %}<a href="{{ url_for('purchase_orders', q=search, status=status, supplier_id=supplier_id_filter, page=pagination.page-1, page_size=pagination.page_size) }}" rel="prev">Anterior</a>{% endif %}
+    <span aria-current="page">Página {{ pagination.page }} de {{ pagination.pages }}</span>
+    {% if pagination.page < pagination.pages %}<a href="{{ url_for('purchase_orders', q=search, status=status, supplier_id=supplier_id_filter, page=pagination.page+1, page_size=pagination.page_size) }}" rel="next">Siguiente</a>{% endif %}
+  </nav>
+  {% endif %}
+</section>
+{% endblock %}

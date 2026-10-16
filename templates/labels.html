@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Etiquetas imprimibles{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">IMPRESIÓN</p><h1>Etiquetas imprimibles</h1>
+<p class="muted">Seleccione un tipo y hasta {{ max_count }} registros para generar un PDF con código de barras y QR.</p></div></div>
+<section class="card">
+  <form method="post" action="{{ url_for('labels_pdf') }}" id="labels-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <fieldset><legend>Tipo de registro</legend>
+      <label><input type="radio" name="label_type" value="products" checked> Productos</label>
+      <label><input type="radio" name="label_type" value="employees"> Empleados</label>
+      <label><input type="radio" name="label_type" value="tools"> Herramientas individualizadas</label>
+    </fieldset>
+    <div class="label-selection" data-type="products">
+      <h2>Productos</h2>
+      <input class="label-search" type="search" placeholder="Filtrar productos…" aria-label="Filtrar productos" style="margin-bottom:.5rem;width:100%">
+      {% for item in products %}<label><input type="checkbox" name="ids" value="{{ item.id }}"> {{ item.name }} <code>{{ item.code }}</code></label>{% else %}<p class="empty">No hay productos.</p>{% endfor %}
+    </div>
+    <div class="label-selection" data-type="employees" hidden>
+      <h2>Empleados</h2>
+      <input class="label-search" type="search" placeholder="Filtrar empleados…" aria-label="Filtrar empleados" style="margin-bottom:.5rem;width:100%">
+      {% for item in employees %}<label><input type="checkbox" name="ids" value="{{ item.id }}"> {{ item.full_name }} <code>{{ item.code }}</code></label>{% else %}<p class="empty">No hay empleados activos.</p>{% endfor %}
+    </div>
+    <div class="label-selection" data-type="tools" hidden>
+      <h2>Herramientas</h2>
+      <input class="label-search" type="search" placeholder="Filtrar herramientas…" aria-label="Filtrar herramientas" style="margin-bottom:.5rem;width:100%">
+      {% for item in tools %}<label><input type="checkbox" name="ids" value="{{ item.id }}"> {{ item.product_name }} <code>{{ item.serial_number }}</code></label>{% else %}<p class="empty">No hay herramientas individualizadas.</p>{% endfor %}
+    </div>
+    <button class="button" type="submit">Generar PDF imprimible</button>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('input[name="label_type"]').forEach(function (radio) {
+  radio.addEventListener('change', function () {
+    document.querySelectorAll('.label-selection').forEach(function (section) {
+      section.hidden = section.dataset.type !== radio.value;
+      if (section.hidden) section.querySelectorAll('input[type="checkbox"]').forEach(function (box) { box.checked = false; });
+    });
+  });
+});
+document.querySelectorAll('.label-search').forEach(function (input) {
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase();
+    var section = input.closest('.label-selection');
+    section.querySelectorAll('label').forEach(function (label) {
+      label.style.display = (!q || label.textContent.toLowerCase().includes(q)) ? '' : 'none';
+    });
+  });
+});
+</script>
+{% endblock %}

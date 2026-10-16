@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}Inicio{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow">OBRA DEMO</p>
+    <h1>Inventario del pañol</h1>
+    <p>Seguimiento simple y trazable de herramientas, materiales y entregas.</p>
+  </div>
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-start">
+    <div style="position:relative">
+      <input id="quick-scan" type="search" placeholder="Escanear o buscar código…" autocomplete="off"
+             aria-label="Búsqueda rápida por código" style="min-width:240px">
+      <div id="scan-result" hidden
+           style="position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid #cfd6de;
+                  border-radius:6px;padding:.75rem;font-size:.875rem;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+    </div>
+    <a class="button" href="{{ url_for('movements') }}">＋ Nueva entrega / ingreso</a>
+  </div>
+</section>
+
+<section class="stats" id="stats-section">
+  <div class="stat" data-stat="products"><span>Productos activos</span><strong>{{ stats.products }}</strong></div>
+  <div class="stat" data-stat="employees"><span>Empleados activos</span><strong>{{ stats.employees }}</strong></div>
+  <div class="stat warning" data-stat="low_stock"><span>Bajo mínimo / reposición</span><strong>{{ stats.low_stock }}</strong><a class="stat-link" href="{{ url_for('replenishment') }}">Ver reposición</a></div>
+  <div class="stat" data-stat="movements"><span>Movimientos hoy</span><strong>{{ stats.movements }}</strong></div>
+  <div class="stat" data-stat="pending_purchase_orders"><span>Órdenes pendientes</span><strong>{{ stats.pending_purchase_orders }}</strong><a class="stat-link" href="{{ url_for('purchase_orders') }}">Ver órdenes</a></div>
+  <div class="stat" data-stat="inventory_value"><span>Valor del inventario</span><strong>$ {{ '%.2f'|format(stats.inventory_value or 0) }}</strong><a class="stat-link" href="{{ url_for('inventory_valuation') }}">Ver detalle</a></div>
+</section>
+
+<div class="grid-2">
+  <section class="card">
+    <div class="section-heading"><h2>Movimientos — últimos 30 días</h2></div>
+    <div style="position:relative;height:220px"><canvas id="chart-movements"></canvas></div>
+  </section>
+  <section class="card">
+    <div class="section-heading"><h2>Stock por categoría</h2></div>
+    <div style="position:relative;height:220px"><canvas id="chart-categories"></canvas></div>
+  </section>
+</div>
+
+<section class="card operational-indicators">
+  <div class="section-heading">
+    <h2>Indicadores operativos</h2>
+    <span class="muted" id="stats-ts">Datos actualizados al consultar</span>
+  </div>
+  <div class="indicator-grid">
+    <a class="indicator" href="{{ url_for('tool_instances') }}"><span>Herramientas individualizadas entregadas</span><strong data-stat="tools_delivered">{{ stats.tools_delivered }}</strong><small>Ver herramientas</small></a>
+    <a class="indicator" href="{{ url_for('movements') }}"><span>Movimientos del mes actual</span><strong data-stat="movements_month">{{ stats.movements_month }}</strong><small>Ver movimientos</small></a>
+    <a class="indicator" href="{{ url_for('tool_instances') }}"><span>Pendientes de devolución</span><strong data-stat="pending_returns">{{ stats.pending_returns }}</strong><small>Entregas netas por herramienta</small></a>
+  </div>
+</section>
+
+<div class="grid-2">
+  <section class="card">
+    <div class="section-heading"><h2>Stock para reponer</h2><a href="{{ url_for('replenishment') }}">Ver lista completa</a></div>
+    {% if low_products %}
+    <table><thead><tr><th>Producto</th><th>Stock</th><th>Mínimo</th><th></th></tr></thead><tbody>
+    {% for product in low_products %}
+    <tr>
+      <td><a href="{{ url_for('edit_product', product_id=product.id) }}"><strong>{{ product.name }}</strong></a><small>{{ product.code }}</small></td>
+      <td class="danger">{{ product.stock }} {{ product.unit }}</td>
+      <td>{{ product.minimum_stock }}</td>
+      <td><a class="action-link" href="{{ url_for('movements') }}?pid={{ product.id }}&ptype={{ product.product_type }}">Ingresar</a></td>
+    </tr>
+    {% endfor %}
+    </tbody></table>
+    {% else %}<p class="empty">No hay productos con stock bajo.</p>{% endif %}
+  </section>
+  <section class="card">
+    <div class="section-heading"><h2>Órdenes solicitadas o parciales</h2><a href="{{ url_for('purchase_orders') }}">Ver órdenes</a></div>
+    {% if pending_orders %}
+    <table><thead><tr><th>Orden</th><th>Proveedor</th><th>Estado</th><th>Recepción pendiente</th></tr></thead><tbody>
+    {% for order in pending_orders %}
+    <tr>
+      <td><a href="{{ url_for('purchase_order_detail', order_id=order.id) }}"><strong>{{ order.order_number }}</strong></a><small>{{ order.order_date }}</small></td>
+      <td>{{ order.supplier_name }}</td>
+      <td><span class="badge">{{ order.status|capitalize }}</span></td>
+      <td>{{ order.quantity_pending }}<small>{{ order.quantity_received }}/{{ order.quantity_requested }} recibidas</small></td>
+    </tr>
+    {% endfor %}
+    </tbody></table>
+    {% else %}<p class="empty">No hay recepciones pendientes.</p>{% endif %}
+  </section>
+  <section class="card">
+    <div class="section-heading"><h2>Últimos movimientos</h2><a href="{{ url_for('movements') }}">Historial</a></div>
+    {% if latest %}
+    <table><thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cant.</th></tr></thead><tbody>
+    {% for movement in latest %}
+    <tr>
+      <td>{{ movement.movement_date }}<small>{{ movement.employee_name or 'Sin asignar' }}</small></td>
+      <td><a href="{{ url_for('edit_product', product_id=movement.product_id) }}">{{ movement.product_name }}</a></td>
+      <td><span class="badge {{ movement.movement_type }}">{{ movement.movement_type|capitalize }}</span></td>
+      <td>{{ movement.quantity }}</td>
+    </tr>
+    {% endfor %}
+    </tbody></table>
+    {% else %}<p class="empty">Todavía no hay movimientos.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+(function () {
+  'use strict';
+
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Gráfico de barras: movimientos últimos 30 días
+  fetch('/api/movements-chart')
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+    .then(function (d) {
+      new Chart(document.getElementById('chart-movements'), {
+        type: 'bar',
+        data: {
+          labels: d.labels,
+          datasets: [
+            { label: 'Entrada',    data: d.entrada,    backgroundColor: '#1565c0b3', borderRadius: 3 },
+            { label: 'Salida',     data: d.salida,     backgroundColor: '#c62828b3', borderRadius: 3 },
+            { label: 'Devolución', data: d.devolucion, backgroundColor: '#2e7d32b3', borderRadius: 3 },
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          scales: {
+            x: { ticks: { maxTicksLimit: 10 } },
+            y: { beginAtZero: true, ticks: { precision: 0 } }
+          }
+        }
+      });
+    })
+    .catch(function () {});
+
+  // Gráfico donut: stock por categoría
+  fetch('/api/stock-by-category')
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+    .then(function (d) {
+      var palette = ['#1565c0','#c62828','#2e7d32','#e65100','#6a1b9a','#00838f','#4e342e','#37474f'];
+      new Chart(document.getElementById('chart-categories'), {
+        type: 'doughnut',
+        data: {
+          labels: d.labels,
+          datasets: [{ data: d.values, backgroundColor: palette.slice(0, d.labels.length), borderWidth: 2 }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'right' } }
+        }
+      });
+    })
+    .catch(function () {});
+
+  // Auto-refresh de indicadores cada 60 segundos
+  function refreshStats() {
+    fetch('/api/dashboard-stats')
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (d) {
+        document.querySelectorAll('[data-stat]').forEach(function (el) {
+          var key = el.dataset.stat;
+          if (!(key in d)) return;
+          var target = el.tagName === 'STRONG' ? el : el.querySelector('strong');
+          if (!target) return;
+          if (key === 'inventory_value') {
+            target.textContent = '$ ' + parseFloat(d[key] || 0).toFixed(2);
+          } else {
+            target.textContent = d[key];
+          }
+        });
+        var ts = document.getElementById('stats-ts');
+        if (ts) {
+          var now = new Date();
+          ts.textContent = 'Actualizado ' +
+            now.getHours().toString().padStart(2, '0') + ':' +
+            now.getMinutes().toString().padStart(2, '0');
+        }
+      })
+      .catch(function () {});
+  }
+  setInterval(refreshStats, 60000);
+
+  // Búsqueda rápida por código (teclado o lector de barras)
+  var scanInput  = document.getElementById('quick-scan');
+  var scanResult = document.getElementById('scan-result');
+  var scanTimer;
+
+  scanInput.addEventListener('input', function () {
+    clearTimeout(scanTimer);
+    var val = scanInput.value.trim();
+    if (!val) { scanResult.hidden = true; return; }
+    scanTimer = setTimeout(function () {
+      fetch('/api/codigos/' + encodeURIComponent(val))
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.error) {
+            scanResult.innerHTML = '<span style="color:#c62828">Código no encontrado</span>';
+          } else if (d.type === 'product') {
+            scanResult.innerHTML =
+              '<strong>' + esc(d.item.name) + '</strong> &mdash; Stock: ' + esc(d.item.stock) + ' ' + esc(d.item.unit) +
+              ' &mdash; <a href="/productos?q=' + encodeURIComponent(d.item.code) + '">Ver producto</a>' +
+              ' &mdash; <a href="/movimientos">Nuevo movimiento</a>';
+          } else {
+            scanResult.innerHTML =
+              '<strong>' + esc(d.item.full_name) + '</strong> (Legajo: ' + esc(d.item.legajo) + ')' +
+              ' &mdash; <a href="/movimientos?q=' + encodeURIComponent(d.item.code) + '">Ver movimientos</a>';
+          }
+          scanResult.hidden = false;
+        })
+        .catch(function () { scanResult.hidden = true; });
+    }, 350);
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!scanInput.contains(e.target) && !scanResult.contains(e.target)) {
+      scanResult.hidden = true;
+    }
+  });
+}());
+</script>
+{% endblock %}

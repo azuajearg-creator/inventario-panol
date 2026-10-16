@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Carga masiva{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">MÓDULO DE CATÁLOGO</p><h1>Carga masiva de productos</h1><p class="muted">Importe materiales y herramientas desde un archivo CSV.</p></div></div>
+<section class="card narrow-card">
+  <h2>Importar archivo</h2>
+  <p class="muted">Los productos existentes se actualizan por código y los nuevos se crean. La carga se cancela completa si alguna fila tiene errores.</p>
+  <p><a class="button button-small" href="{{ url_for('products_import_template') }}">Descargar plantilla CSV</a></p>
+  <form method="post" enctype="multipart/form-data" class="form-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label class="full">Archivo CSV<input type="file" name="file" accept=".csv,text/csv" required><small class="field-help">Máximo 10.000 filas y 5 MB. Usar UTF-8.</small></label>
+    <button class="button full" type="submit">Validar e importar productos</button>
+  </form>
+</section>
+<section class="card">
+  <h2>Columnas del archivo</h2>
+  <p class="muted"><code>code, name, brand, category, product_type, presentation, unit, stock, minimum_stock, reorder_quantity, supplier_name, location</code></p>
+  <p class="field-help">Son obligatorias: code, name, category, product_type, presentation, unit, stock y minimum_stock. supplier_name y reorder_quantity son opcionales.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,25 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Empleados{% endblock %}
+
+{% block content %}
+
+<div class="page-heading"><div><p class="eyebrow">MÓDULO DE PERSONAS</p><h1>Empleados y responsables</h1><p><a class="action-link" href="{{ url_for('labels') }}">Imprimir etiquetas</a> &nbsp;·&nbsp; <a class="action-link" href="{{ url_for('import_employees') }}">Carga masiva</a></p></div></div>
+<div class="grid-2">
+
+<section class="card"><h2>Nuevo empleado</h2><form method="post" class="form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+  <label>Código / código de barras<input name="code" required placeholder="Ej. EMP-001"></label><label>Nombre completo<input name="full_name" required></label>
+
+  <label>Legajo / número de empleado<input name="legajo" required></label><label>Teléfono<input name="phone"></label><button class="button full" type="submit">Guardar empleado</button>
+
+</form></section>
+
+<section class="card"><div class="section-heading"><h2>Listado ({{ pagination.total }})</h2><form class="search" method="get"><input type="hidden" name="page_size" value="{{ pagination.page_size }}"><input name="q" value="{{ search }}" placeholder="Buscar..." aria-label="Buscar empleados"><button>Buscar</button><a class="action-link" href="{{ url_for('employees') }}">Limpiar</a></form></div>
+
+{% if employees %}<table><thead><tr><th>Empleado</th><th>Legajo</th><th>Contacto</th><th>Herramientas</th><th>Identificador</th><th>Acción</th></tr></thead><tbody>{% for employee in employees %}<tr><td><strong>{{ employee.full_name }}</strong><small>{{ employee.code }}</small></td><td>{{ employee.legajo }}</td><td>{{ employee.phone or '-' }}</td><td>{% if employee.tools_out > 0 %}<span class="badge salida">{{ employee.tools_out }} entregadas</span>{% else %}<span class="muted">—</span>{% endif %}</td><td><a class="barcode-link" href="{{ url_for('barcodes', filename=employee.code + '.svg') }}" target="_blank">Ver código</a></td><td><a class="action-link" href="{{ url_for('edit_employee', employee_id=employee.id) }}">Modificar</a></td></tr>{% endfor %}</tbody></table>{% else %}<p class="empty">No hay empleados registrados.</p>{% endif %}{% if pagination.pages > 1 %}<nav class="pagination" aria-label="Paginación de empleados">{% if pagination.page > 1 %}<a href="{{ url_for('employees', q=search, page=pagination.page-1, page_size=pagination.page_size) }}" rel="prev">Anterior</a>{% endif %}<span aria-current="page">Página {{ pagination.page }} de {{ pagination.pages }}</span>{% if pagination.page < pagination.pages %}<a href="{{ url_for('employees', q=search, page=pagination.page+1, page_size=pagination.page_size) }}" rel="next">Siguiente</a>{% endif %}</nav>{% endif %}</section>
+
+</div>
+
+{% endblock %}
+

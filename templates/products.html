@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}{% if tipo == 'herramienta' %}Herramientas{% elif tipo == 'material' %}Materiales{% else %}Catálogo{% endif %}{% endblock %}
+
+{% block content %}
+
+{% set section_label = 'Herramientas' if tipo == 'herramienta' else 'Materiales' if tipo == 'material' else 'Catálogo' %}
+{% set item_label = 'herramienta' if tipo == 'herramienta' else 'material' %}
+
+<div class="page-heading"><div><p class="eyebrow">MÓDULO DE CATÁLOGO</p><h1>{{ section_label }}</h1><p><a class="action-link" href="{{ url_for('labels') }}">Imprimir etiquetas</a></p><div class="category-legend"><a class="category-tag category-filter category-electricidad" href="{{ url_for('products', q=search, category='Electricidad', tipo=tipo) }}">Electricidad</a><a class="category-tag category-filter category-limpieza" href="{{ url_for('products', q=search, category='Limpieza', tipo=tipo) }}">Limpieza</a><a class="category-tag category-filter category-higiene" href="{{ url_for('products', q=search, category='Higiene y seguridad', tipo=tipo) }}">Higiene y seguridad</a><a class="category-tag category-filter category-ferreteria" href="{{ url_for('products', q=search, category='Ferretería', tipo=tipo) }}">Ferretería</a><a class="category-tag category-filter category-durlock" href="{{ url_for('products', q=search, category='Durlock', tipo=tipo) }}">Durlock</a><a class="category-tag category-filter category-colocacion" href="{{ url_for('products', q=search, category='Colocación', tipo=tipo) }}">Colocación</a></div></div></div>
+<div class="grid-2">
+
+<section class="card"><div class="section-heading"><h2>Nuevo {{ item_label }}</h2><a class="action-link" href="{{ url_for('import_products') }}">Carga masiva</a></div><form method="post" class="form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="tipo" value="{{ tipo }}">
+
+  <label>Código / código de barras<input name="code" required placeholder="Ej. TAL-001"></label><label>Nombre<input name="name" required></label>
+
+  <label>Marca<input name="brand" placeholder="Ej. Bosch, Makita, 3M"></label><label>Categoría<input name="category" required list="cat-list-new" placeholder="Selecciona o escribe una categoría" autocomplete="off"><datalist id="cat-list-new">{% for c in all_categories %}<option value="{{ c.category }}">{% endfor %}</datalist></label>
+
+  {% if not tipo %}<label>Tipo<select name="product_type" required><option value="material">Material</option><option value="herramienta">Herramienta</option></select></label>{% else %}<input type="hidden" name="product_type" value="{{ tipo }}">{% endif %}<label>Tipo de presentación<input name="presentation" required placeholder="Caja x 10, rollo 50 m, unidad"></label>
+
+  <label>Unidad de control<input name="unit" value="unidad"></label>
+
+  <label>Stock inicial<input type="number" name="stock" min="0" value="0"></label><label>Stock mínimo<input type="number" name="minimum_stock" min="0" value="0"></label>
+
+  <label>Reposición sugerida<input type="number" name="reorder_quantity" min="0" value="0"><small class="field-help">0 = calcular según el faltante.</small></label>
+
+  <label>Costo unitario<input type="number" name="unit_cost" min="0" step="0.01" value="0"></label>
+  <label>Proveedor<select name="supplier_id"><option value="">Sin proveedor</option>{% for supplier in suppliers %}<option value="{{ supplier.id }}">{{ supplier.name }}</option>{% endfor %}</select></label>
+
+  <label class="full">Ubicación<input name="location" placeholder="Estante A-01"></label>
+  {% if tipo == 'material' or not tipo %}
+  <label class="full" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+    <input type="checkbox" name="retornable" value="1" style="width:auto">
+    Material retornable (piloto, capa de lluvia, arnés)
+    <small class="field-help">Marcarlo para que aparezca en el reporte de pendientes de devolución.</small>
+  </label>
+  {% endif %}
+  <button class="button full" type="submit">Guardar {{ item_label }}</button>
+
+</form></section>
+
+<section class="card"><div class="section-heading"><div><h2>Listado ({{ pagination.total }}){% if stock_bajo %} <span style="display:inline-block;background:#e74c3c;color:#fff;border-radius:10px;padding:1px 8px;font-size:.75rem;font-weight:700;vertical-align:middle;margin-left:6px">Stock bajo</span>{% endif %}</h2>{% if stock_bajo %}<a class="action-link" href="{{ url_for('products', q=search, category=category, tipo=tipo) }}" style="margin-left:8px">Ver todos</a>{% else %}<a class="action-link" href="{{ url_for('products', q=search, category=category, tipo=tipo, stock_bajo='1') }}" style="margin-left:8px">Ver stock bajo</a>{% endif %}{% if session.get('role') == 'admin' %}{% if show_deleted %}<a class="action-link" href="{{ url_for('products', tipo=tipo) }}" style="margin-left:8px">Ver activos</a>{% elif deleted_count > 0 %}<a class="action-link" href="{{ url_for('products', tipo=tipo, eliminados='1') }}" style="margin-left:8px">Ver eliminados ({{ deleted_count }})</a>{% endif %}{% endif %}{% if category %}<p class="active-filter">Categoría: <strong>{{ category }}</strong> <a href="{{ url_for('products', q=search, tipo=tipo, stock_bajo='1' if stock_bajo else '') }}">Quitar filtro</a></p>{% endif %}</div><form class="search" method="get"><input type="hidden" name="category" value="{{ category }}"><input type="hidden" name="tipo" value="{{ tipo }}"><input type="hidden" name="page_size" value="{{ pagination.page_size }}">{% if stock_bajo %}<input type="hidden" name="stock_bajo" value="1">{% endif %}<input name="q" value="{{ search }}" placeholder="Buscar {{ section_label|lower }}..." aria-label="Buscar {{ section_label|lower }}"><button>Buscar</button><a class="action-link" href="{{ url_for('products', tipo=tipo) }}">Limpiar</a></form></div>
+
+{% if products %}<table><thead><tr><th>{{ section_label }}</th><th>Marca</th><th>Presentación</th><th>Categoría</th><th>Stock</th><th>Identificador</th><th>Acción</th></tr></thead><tbody>{% for product in products %}<tr><td><strong>{{ product.name }}</strong><small>{{ product.location or 'Sin ubicación' }}</small></td><td>{{ product.brand or '-' }}</td><td>{{ product.presentation }}</td><td><a class="category-tag category-filter {{ category_class(product.category) }}" href="{{ url_for('products', category=product.category, tipo=tipo) }}">{{ product.category }}</a></td><td class="{{ 'danger' if low_stock(product) else '' }}">{{ product.stock }} {{ product.unit }}<small>Mín. {{ product.minimum_stock }}</small></td><td><code>{{ product.code }}</code><a class="barcode-link" href="{{ url_for('barcodes', filename=product.code + '.svg') }}" target="_blank">Ver código</a></td><td><a class="action-link" href="{{ url_for('edit_product', product_id=product.id) }}">Modificar</a></td></tr>{% endfor %}</tbody></table>{% else %}<p class="empty">No hay {{ section_label|lower }} registradas{% if category %} en esta categoría{% endif %}.</p>{% endif %}{% if pagination.pages > 1 %}<nav class="pagination" aria-label="Paginación">{% if pagination.page > 1 %}<a href="{{ url_for('products', q=search, category=category, tipo=tipo, page=pagination.page-1, page_size=pagination.page_size, stock_bajo='1' if stock_bajo else '') }}" rel="prev">Anterior</a>{% endif %}<span aria-current="page">Página {{ pagination.page }} de {{ pagination.pages }}</span>{% if pagination.page < pagination.pages %}<a href="{{ url_for('products', q=search, category=category, tipo=tipo, page=pagination.page+1, page_size=pagination.page_size, stock_bajo='1' if stock_bajo else '') }}" rel="next">Siguiente</a>{% endif %}</nav>{% endif %}</section>
+
+</div>
+
+{% endblock %}

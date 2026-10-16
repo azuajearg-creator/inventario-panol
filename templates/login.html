@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Acceso · Pañol Demo</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-page">
+  <main class="login-card">
+    <div class="login-brand">PAÑOL <span>| Obra Demo</span></div>
+    <h1>Ingresar a la aplicación</h1>
+    <p class="muted">Utilice sus credenciales para acceder al inventario.</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}<div class="alert {{ category }}">{{ message }}</div>{% endfor %}
+    {% endwith %}
+    <form method="post" class="login-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>Usuario
+        <input type="text" name="username" value="{{ username|default('') }}" autocomplete="username" required autofocus>
+      </label>
+      <label>Contraseña
+        <input type="password" name="password" autocomplete="current-password" required>
+      </label>
+      <button class="button" type="submit">Ingresar</button>
+    </form>
+  </main>
+</body>
+</html>

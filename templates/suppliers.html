@@ -1,0 +1,35 @@
+﻿{% extends "base.html" %}
+{% block title %}Proveedores{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">ABASTECIMIENTO</p><h1>Proveedores</h1><p class="muted">Administre los proveedores habituales del pañol.</p></div></div>
+<section class="card"><h2>Nuevo proveedor</h2><form method="post" class="form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label>Razón social / nombre<input name="name" required></label><label>Contacto<input name="contact"></label><label>Teléfono<input name="phone"></label><label>Email<input type="email" name="email"></label><button class="button full" type="submit">Guardar proveedor</button>
+</form></section>
+<section class="card">
+<div class="section-heading">
+  <h2>Proveedores registrados ({{ pagination.total }})</h2>
+  <form class="search" method="get" role="search" aria-label="Filtrar proveedores">
+    <label for="supplier-search">Buscar</label>
+    <input id="supplier-search" name="q" value="{{ search }}" placeholder="Nombre, contacto, teléfono o email">
+    <label for="supplier-status">Estado</label>
+    <select id="supplier-status" name="status">
+      <option value="">Todos los estados</option>
+      <option value="active" {% if status == 'active' %}selected{% endif %}>Activos</option>
+      <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactivos</option>
+    </select>
+    <label for="supplier-page-size">Registros por página</label>
+    <select id="supplier-page-size" name="page_size">
+      {% for size in [10, 25, 50, 100] %}<option value="{{ size }}" {% if pagination.page_size == size %}selected{% endif %}>{{ size }}</option>{% endfor %}
+    </select>
+    <button type="submit">Buscar</button>
+    <a class="action-link" href="{{ url_for('suppliers') }}">Limpiar</a>
+  </form>
+</div>
+{% if suppliers %}<table><thead><tr><th>Proveedor</th><th>Contacto</th><th>Teléfono</th><th>Email</th><th>Estado</th></tr></thead><tbody>{% for supplier in suppliers %}<tr><td>{{ supplier.name }}</td><td>{{ supplier.contact or '-' }}</td><td>{{ supplier.phone or '-' }}</td><td>{{ supplier.email or '-' }}</td><td>{{ 'Activo' if supplier.active else 'Inactivo' }}</td></tr>{% endfor %}</tbody></table>{% else %}<p class="empty">No hay proveedores registrados.</p>{% endif %}
+{% if pagination.pages > 1 %}<nav class="pagination" aria-label="Paginación de proveedores">
+  {% if pagination.page > 1 %}<a href="{{ url_for('suppliers', q=search, status=status, page=pagination.page-1, page_size=pagination.page_size) }}" rel="prev">Anterior</a>{% endif %}
+  <span aria-current="page">Página {{ pagination.page }} de {{ pagination.pages }}</span>
+  {% if pagination.page < pagination.pages %}<a href="{{ url_for('suppliers', q=search, status=status, page=pagination.page+1, page_size=pagination.page_size) }}" rel="next">Siguiente</a>{% endif %}
+</nav>{% endif %}
+</section>
+{% endblock %}

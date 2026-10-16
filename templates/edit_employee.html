@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Modificar empleado{% endblock %}
+{% block content %}
+<div class="page-heading"><p class="eyebrow">MÓDULO DE PERSONAS</p><h1>Modificar empleado</h1><p class="muted">Actualizá los datos de {{ employee.full_name }}.</p></div>
+<section class="card narrow-card"><form method="post" class="form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Código / código de barras<input name="code" value="{{ employee.code }}" required></label><label>Nombre completo<input name="full_name" value="{{ employee.full_name }}" required></label>
+  <label>Legajo / número de empleado<input name="legajo" value="{{ employee.legajo }}" required></label><label>Teléfono<input name="phone" value="{{ employee.phone or '' }}"></label>
+  <div class="form-actions full"><button class="button" type="submit">Guardar cambios</button><a href="{{ url_for('employees') }}">Cancelar</a></div>
+</form></section>
+
+{% if emp_barcode_url %}
+<section class="card narrow-card" style="margin-top:16px">
+  <div class="section-heading"><h2>Código de barras</h2><a class="button" href="{{ url_for('labels') }}" target="_blank">Imprimir etiqueta</a></div>
+  <div style="text-align:center;padding:12px 0">
+    <img src="{{ emp_barcode_url }}" alt="Código {{ employee.code }}" style="max-width:260px;height:auto">
+    <p class="muted" style="margin:6px 0 0;font-size:.875rem">{{ employee.code }} · Legajo {{ employee.legajo }}</p>
+  </div>
+</section>
+{% endif %}
+
+<section class="card" style="margin-top:16px">
+  <div class="section-heading">
+    <h2>Tenencias actuales</h2>
+    <a class="action-link" href="{{ url_for('reports') }}">Ver reporte completo</a>
+  </div>
+  {% if current_tools %}
+  <table><thead><tr><th>Herramienta</th><th>N° de unidad</th><th>Acción</th></tr></thead><tbody>
+  {% for tool in current_tools %}
+  <tr>
+    <td><strong>{{ tool.product_name }}</strong><small>{{ tool.product_code }}</small></td>
+    <td>{{ tool.serial_number }}</td>
+    <td><a class="action-link" href="{{ url_for('movements') }}?pid={{ tool.product_id }}&ptype=herramienta">Registrar devolución</a></td>
+  </tr>
+  {% endfor %}
+  </tbody></table>
+  {% else %}
+  <p class="empty">Este empleado no tiene herramientas entregadas actualmente.</p>
+  {% endif %}
+</section>
+
+<section class="card" style="margin-top:16px">
+  <div class="section-heading">
+    <h2>Historial de movimientos</h2>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <a class="action-link" href="{{ url_for('employee_history_csv', employee_id=employee.id) }}">Descargar CSV</a>
+      <a class="action-link" href="{{ url_for('movements') }}">Historial completo</a>
+    </div>
+  </div>
+  {% if employee_history %}
+  <table><thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Remito</th></tr></thead><tbody>
+  {% for m in employee_history %}
+  <tr>
+    <td>{{ m.movement_date }}</td>
+    <td><strong>{{ m.product_name }}</strong><small>{{ m.product_code }}</small></td>
+    <td><span class="badge {{ m.movement_type }}">{{ m.movement_type|capitalize }}</span></td>
+    <td>{{ m.quantity }}</td>
+    <td>{% if m.remito %}<strong>{{ m.remito }}</strong>{% else %}—{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody></table>
+  {% else %}
+  <p class="empty">Este empleado no tiene movimientos registrados.</p>
+  {% endif %}
+</section>
+{% endblock %}

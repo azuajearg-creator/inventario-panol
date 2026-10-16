@@ -1,0 +1,27 @@
+# Entornos y cachés
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Datos reales y secretos: nunca se publican
+data/*
+!data/.gitkeep
+!data/alerta_config.example.ini
+*.db
+*.log
+secret.key
+.env
+
+# Códigos de barras generados
+static/barcodes/*
+!static/barcodes/.gitkeep
+
+# Empaquetado
+build/
+dist/
+*.exe
+
+# Editor
+.vscode/
